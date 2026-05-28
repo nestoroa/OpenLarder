@@ -56,6 +56,13 @@ app.use('/api/pantries', eventsRouter);
 app.use('/api/products', productsRouter);
 app.use(errorHandler);
 
+// Mount Astro SSR handler as catch-all (must come last, after all /api routes)
+// Guarded so backend tests (which import entry.mjs) don't fail without a build
+if (process.env.NODE_ENV !== 'test') {
+  const { handler } = await import('./dist/server/entry.mjs');
+  app.use(handler);
+}
+
 // Guard: don't listen during tests
 if (process.env.NODE_ENV !== 'test') {
   const port = process.env.PORT || 4321;
