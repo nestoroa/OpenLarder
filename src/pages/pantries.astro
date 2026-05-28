@@ -1,0 +1,19 @@
+---
+import Base from '../layouts/Base.astro';
+import PantryList from '../components/PantryList.tsx';
+const user = Astro.locals.user;
+---
+<Base title="My Pantries — OpenLarder">
+  <header class="sticky top-0 z-10 bg-white border-b px-4 py-3 flex items-center justify-between">
+    <h1 class="text-lg font-bold text-green-700">OpenLarder</h1>
+    <div class="flex items-center gap-2">
+      {user.avatar_url && <img src={user.avatar_url} alt="" class="w-8 h-8 rounded-full" />}
+      <form action="/auth/logout" method="post">
+        <button class="text-sm text-gray-500 min-h-[44px] px-2">Sign out</button>
+      </form>
+    </div>
+  </header>
+  <main class="flex-1 overflow-auto px-4 py-4 pb-safe">
+    <PantryList client:load />
+  </main>
+</Base>
