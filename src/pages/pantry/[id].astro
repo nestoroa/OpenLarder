@@ -1,0 +1,9 @@
+---
+import Base from '../../layouts/Base.astro';
+import PantryTabs from '../../components/PantryTabs.tsx';
+const { id } = Astro.params;
+if (!id || isNaN(Number(id))) return Astro.redirect('/pantries');
+---
+<Base>
+  <PantryTabs pantryId={Number(id)} client:load />
+</Base>
