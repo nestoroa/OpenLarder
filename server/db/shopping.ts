@@ -51,18 +51,22 @@ export function patchShoppingItem(
     return db.prepare(`SELECT * FROM ShoppingListItem WHERE id = ?`).get(itemId);
   }
 
-  const checked_at = data.checked ? new Date().toISOString() : null;
+  // Use COALESCE for checked so quantity-only patches don't silently uncheck items
+  const checked_at = data.checked === true ? new Date().toISOString() : null;
   db.prepare(`
     UPDATE ShoppingListItem
-    SET checked = @checked, quantity = COALESCE(@quantity, quantity),
-        updated_at = @updated_at, checked_by = @checked_by, checked_at = @checked_at
+    SET checked    = CASE WHEN @checked IS NOT NULL THEN @checked ELSE checked END,
+        checked_at = CASE WHEN @checked IS NOT NULL THEN @checked_at ELSE checked_at END,
+        checked_by = CASE WHEN @checked IS NOT NULL THEN @checked_by ELSE checked_by END,
+        quantity   = COALESCE(@quantity, quantity),
+        updated_at = @updated_at
     WHERE id = @id
   `).run({
-    checked: data.checked ? 1 : 0,
-    quantity: data.quantity,
+    checked: data.checked !== undefined ? (data.checked ? 1 : 0) : null,
+    quantity: data.quantity ?? null,
     updated_at: data.updated_at,
-    checked_by: data.checked_by ?? null,
-    checked_at,
+    checked_by: data.checked !== undefined ? (data.checked_by ?? null) : null,
+    checked_at: data.checked !== undefined ? checked_at : null,
     id: itemId,
   });
   return db.prepare(`SELECT * FROM ShoppingListItem WHERE id = ?`).get(itemId);
