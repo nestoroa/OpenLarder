@@ -4,9 +4,9 @@
   "description": "",
   "type": "module",
   "scripts": {
-    "dev": "astro build --watch & node entry.mjs",
+    "dev": "astro build --watch & node --env-file=.env --import tsx/esm entry.mjs",
     "build": "astro build",
-    "start": "node entry.mjs",
+    "start": "node --env-file=.env --import tsx/esm entry.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -25,6 +25,7 @@
     "passport-google-oauth20": "^2.0.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "tsx": "^4.22.3",
     "uuid": "^14.0.0"
   },
   "devDependencies": {
