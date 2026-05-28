@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+html, body {
+  @apply h-full bg-gray-50 text-gray-900;
+}
+
+button, a, [role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
