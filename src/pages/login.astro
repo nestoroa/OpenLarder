@@ -1,0 +1,22 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Sign in — OpenLarder">
+  <main class="flex flex-col items-center justify-center min-h-full px-4 py-16">
+    <div class="w-full max-w-sm space-y-8 text-center">
+      <div>
+        <h1 class="text-3xl font-bold text-green-700">OpenLarder</h1>
+        <p class="mt-2 text-gray-500">Your shared household pantry</p>
+      </div>
+      <a
+        href="/auth/google"
+        class="flex items-center justify-center gap-3 w-full rounded-xl border border-gray-300
+               bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm
+               hover:bg-gray-50 active:bg-gray-100 transition-colors"
+      >
+        <img src="/icons/google.svg" alt="" class="w-5 h-5" />
+        Sign in with Google
+      </a>
+    </div>
+  </main>
+</Base>
