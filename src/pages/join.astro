@@ -1,0 +1,11 @@
+---
+import Base from '../layouts/Base.astro';
+import JoinConfirm from '../components/JoinConfirm.tsx';
+const token = Astro.url.searchParams.get('token') ?? '';
+if (!token) return Astro.redirect('/pantries');
+---
+<Base title="Join Pantry — OpenLarder">
+  <main class="flex flex-col items-center justify-center min-h-full px-4">
+    <JoinConfirm token={token} client:load />
+  </main>
+</Base>
