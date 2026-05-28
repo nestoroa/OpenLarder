@@ -18,5 +18,12 @@ const { title = 'OpenLarder' } = Astro.props;
   </head>
   <body class="h-full flex flex-col">
     <slot />
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(console.error);
+        });
+      }
+    </script>
   </body>
 </html>
