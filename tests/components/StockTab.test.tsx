@@ -1,12 +1,5 @@
 import { describe, it, expect } from 'vitest';
-
-function expiryClass(expiry: string | null): string {
-  if (!expiry) return '';
-  const days = Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);
-  if (days < 0) return 'bg-red-50 border-red-200';
-  if (days <= 7) return 'bg-yellow-50 border-yellow-200';
-  return '';
-}
+import { expiryClass } from '../../src/components/tabs/StockTab.js';
 
 describe('expiryClass', () => {
   it('returns red for past dates', () => {

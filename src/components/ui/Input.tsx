@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from 'react';
+import { useId, type InputHTMLAttributes } from 'react';
 import { clsx } from 'clsx';
 
 interface Props extends InputHTMLAttributes<HTMLInputElement> {
@@ -7,11 +7,13 @@ interface Props extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export function Input({ label, error, className, id, ...props }: Props) {
+  const generatedId = useId();
+  const inputId = id ?? (label ? generatedId : undefined);
   return (
     <div className="space-y-1">
-      {label && <label htmlFor={id} className="block text-sm font-medium text-gray-700">{label}</label>}
+      {label && <label htmlFor={inputId} className="block text-sm font-medium text-gray-700">{label}</label>}
       <input
-        id={id}
+        id={inputId}
         className={clsx(
           'w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm',
           'focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent',

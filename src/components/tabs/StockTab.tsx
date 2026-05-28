@@ -7,7 +7,7 @@ import { Modal } from '../ui/Modal.js';
 import { Spinner } from '../ui/Spinner.js';
 import { showToast } from '../ui/Toast.js';
 
-function expiryClass(expiry: string | null): string {
+export function expiryClass(expiry: string | null): string {
   if (!expiry) return '';
   const days = Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);
   if (days < 0) return 'bg-red-50 border-red-200';
@@ -94,10 +94,12 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
   }
 
   async function handleDelete(item: StockItem) {
+    // Optimistic remove — restore on failure
+    setStock(prev => prev.filter(s => s.id !== item.id));
     try {
       await api.deleteStock(pantryId, item.id);
-      setStock(prev => prev.filter(s => s.id !== item.id));
     } catch {
+      setStock(prev => [...prev, item]);
       showToast('Failed to remove', 'error');
     }
   }

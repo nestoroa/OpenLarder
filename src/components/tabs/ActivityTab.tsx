@@ -39,12 +39,16 @@ export function ActivityTab({ pantryId }: { pantryId: number }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [offline, setOffline] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  // Track the last event id in a ref so the IntersectionObserver callback
+  // doesn't need `events` in its dep array (which would recreate the observer on every page load)
+  const lastEventIdRef = useRef<number | undefined>(undefined);
 
   const loadFirst = useCallback(async () => {
     try {
       const { events: e, has_more } = await api.getEvents(pantryId);
       setEvents(e);
       setHasMore(has_more);
+      lastEventIdRef.current = e[e.length - 1]?.id;
     } catch {
       setOffline(true);
     } finally {
@@ -58,13 +62,14 @@ export function ActivityTab({ pantryId }: { pantryId: number }) {
     if (!sentinelRef.current || !hasMore || loadingMore || offline) return;
     const observer = new IntersectionObserver(async ([entry]) => {
       if (!entry.isIntersecting) return;
+      const before = lastEventIdRef.current;
+      if (!before) return;
       setLoadingMore(true);
-      const before = events[events.length - 1]?.id;
-      if (!before) { setLoadingMore(false); return; }
       try {
         const { events: more, has_more } = await api.getEvents(pantryId, before);
         setEvents(prev => [...prev, ...more]);
         setHasMore(has_more);
+        lastEventIdRef.current = more[more.length - 1]?.id ?? before;
       } catch {
         showToast('No more results available offline', 'info');
         setHasMore(false);
@@ -74,7 +79,9 @@ export function ActivityTab({ pantryId }: { pantryId: number }) {
     }, { threshold: 1.0 });
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [events, hasMore, loadingMore, offline, pantryId]);
+  // Note: `events` intentionally omitted — cursor tracked via lastEventIdRef
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMore, loadingMore, offline, pantryId]);
 
   if (loading) return <div className="flex justify-center py-12"><Spinner /></div>;
 
