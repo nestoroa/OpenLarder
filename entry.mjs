@@ -25,6 +25,12 @@ if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
 }
 
 const app = express();
+
+// Trust Hostinger's reverse proxy — required for req.secure to be true
+// (connection between CDN and Express is HTTP; CDN terminates SSL)
+// Without this, express-session refuses to set Secure cookies and auth breaks.
+app.set('trust proxy', 1);
+
 const db = getDb();
 runSchema(db);
 
