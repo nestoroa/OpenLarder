@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// navigator.onLine must be writable for tests
 Object.defineProperty(navigator, 'onLine', { writable: true, value: true });
 
+// Top-level mocks — hoisted by Vitest before any imports
 vi.mock('../../src/lib/api.js', () => ({
   api: {
     upsertStock: vi.fn().mockResolvedValue({ id: 1, created: true }),
@@ -33,14 +35,8 @@ describe('sync engine', () => {
   });
 
   it('enqueues mutation when offline', async () => {
+    // Flip online state and use the module-level enqueue mock
     (navigator as any).onLine = false;
-    vi.resetModules();
-    vi.mock('../../src/lib/api.js', () => ({ api: { upsertStock: vi.fn(), getStock: vi.fn().mockResolvedValue([]) } }));
-    vi.mock('../../src/lib/db.js', () => ({
-      getCachedStock: vi.fn().mockResolvedValue([]),
-      saveStock: vi.fn(),
-      enqueue: vi.fn().mockResolvedValue(undefined),
-    }));
     const { syncUpsertStock } = await import('../../src/lib/sync.js');
     const { enqueue } = await import('../../src/lib/db.js');
     await syncUpsertStock(1, { storage_space_id: 1, product_id: 1, count: 2 });
