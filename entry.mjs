@@ -1,5 +1,7 @@
 import express from 'express';
 import session from 'express-session';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import passport from 'passport';
 import SqliteStore from 'better-sqlite3-session-store';
 import { getDb } from './server/db/connection.js';
@@ -55,6 +57,10 @@ app.use('/api/pantries', shoppingRouter);
 app.use('/api/pantries', eventsRouter);
 app.use('/api/products', productsRouter);
 app.use(errorHandler);
+
+// Serve static assets from dist/client (Astro middleware mode does not do this automatically)
+const __dirname = dirname(fileURLToPath(import.meta.url));
+app.use(express.static(join(__dirname, 'dist', 'client')));
 
 // Mount Astro SSR handler as catch-all (must come last, after all /api routes)
 // Guarded so backend tests (which import entry.mjs) don't fail without a build
