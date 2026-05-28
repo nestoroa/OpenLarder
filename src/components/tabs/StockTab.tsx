@@ -6,6 +6,9 @@ import { Input } from '../ui/Input.js';
 import { Modal } from '../ui/Modal.js';
 import { Spinner } from '../ui/Spinner.js';
 import { showToast } from '../ui/Toast.js';
+import { syncUpsertStock, syncDeleteStock } from '../../lib/sync.js';
+import { getCachedStock, getCachedSpaces } from '../../lib/db.js';
+import { BarcodeScanner } from '../BarcodeScanner.js';
 
 export function expiryClass(expiry: string | null): string {
   if (!expiry) return '';
@@ -34,12 +37,21 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
   const [count, setCount] = useState(1);
   const [expiry, setExpiry] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannedBarcode, setScannedBarcode] = useState<string | null>(null);
+  const [scannedProductId, setScannedProductId] = useState<number | null>(null);
 
   useEffect(() => {
-    Promise.all([api.getStock(pantryId), api.getSpaces(pantryId)])
-      .then(([s, sp]) => { setStock(s); setSpaces(sp); })
-      .catch(() => showToast('Failed to load stock', 'error'))
-      .finally(() => setLoading(false));
+    if (navigator.onLine) {
+      Promise.all([api.getStock(pantryId), api.getSpaces(pantryId)])
+        .then(([s, sp]) => { setStock(s); setSpaces(sp); })
+        .catch(() => showToast('Failed to load stock', 'error'))
+        .finally(() => setLoading(false));
+    } else {
+      Promise.all([getCachedStock(pantryId), getCachedSpaces(pantryId)])
+        .then(([s, sp]) => { setStock(s as any); setSpaces(sp as any); })
+        .finally(() => setLoading(false));
+    }
   }, [pantryId]);
 
   const bySpace = useMemo(() => {
@@ -51,15 +63,13 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
 
   async function adjustCount(item: StockItem, delta: number) {
     const newCount = Math.max(0, item.count + delta);
-    const now = new Date().toISOString();
     setStock(prev => prev.map(s => s.id === item.id ? { ...s, count: newCount } : s));
     try {
-      await api.upsertStock(pantryId, {
+      await syncUpsertStock(pantryId, {
         storage_space_id: item.storage_space.id,
         product_id: item.product.id,
         count: newCount,
-        expiry_date: item.expiry_date,
-        updated_at: now,
+        expiry_date: item.expiry_date ?? undefined,
       });
     } catch {
       setStock(prev => prev.map(s => s.id === item.id ? { ...s, count: item.count } : s));
@@ -72,7 +82,9 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
     if (!selectedSpace) return;
     setSaving(true);
     try {
-      const product = await api.createProduct({ name: productName });
+      const product = scannedProductId
+        ? { id: scannedProductId }
+        : await api.createProduct({ name: productName, barcode: scannedBarcode ?? undefined });
       const now = new Date().toISOString();
       await api.upsertStock(pantryId, {
         storage_space_id: selectedSpace,
@@ -85,6 +97,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
       setStock(updated);
       setAddModal(false);
       setProductName(''); setCount(1); setExpiry('');
+      setScannedBarcode(null); setScannedProductId(null);
       showToast('Item added', 'success');
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -93,11 +106,40 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
     }
   }
 
+  async function handleScan(barcode: string) {
+    setShowScanner(false);
+    setScannedProductId(null);
+    try {
+      const { getCachedProductByBarcode } = await import('../../lib/db.js');
+      const cached = await getCachedProductByBarcode(barcode) as any;
+      if (cached) {
+        setProductName(cached.name);
+        setScannedBarcode(barcode);
+        setScannedProductId(cached.id);
+        setAddModal(true);
+        return;
+      }
+      const product = await api.lookupBarcode(barcode);
+      setProductName(product.name ?? '');
+      setScannedBarcode(barcode);
+      setScannedProductId(product.id);
+      setAddModal(true);
+    } catch (err: any) {
+      if (err.status === 404) {
+        setScannedBarcode(barcode);
+        setProductName('');
+        setAddModal(true);
+      } else {
+        showToast('Failed to look up barcode', 'error');
+      }
+    }
+  }
+
   async function handleDelete(item: StockItem) {
     // Optimistic remove — restore on failure
     setStock(prev => prev.filter(s => s.id !== item.id));
     try {
-      await api.deleteStock(pantryId, item.id);
+      await syncDeleteStock(pantryId, item.id);
     } catch {
       setStock(prev => [...prev, item]);
       showToast('Failed to remove', 'error');
@@ -117,9 +159,12 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
 
   return (
     <div className="px-4 py-4 space-y-6 pb-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Stock</h2>
-        <Button variant="primary" onClick={() => setAddModal(true)} className="text-sm px-3 py-2">+ Add item</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setShowScanner(true)} className="text-sm px-3 py-2">📷 Scan</Button>
+          <Button variant="primary" onClick={() => setAddModal(true)} className="text-sm px-3 py-2">+ Add item</Button>
+        </div>
       </div>
 
       {spaces.length === 0 && (
@@ -167,12 +212,17 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
               {spaces.map(s => <option key={s.id} value={s.id}>{s.icon} {s.name}</option>)}
             </select>
           </div>
+          {scannedBarcode && (
+            <p className="text-xs text-green-600">Barcode: {scannedBarcode}</p>
+          )}
           <Input label="Product name" value={productName} onChange={e => setProductName(e.target.value)} required placeholder="e.g. Oat milk" />
           <Input label="Count" type="number" min={0} value={count} onChange={e => setCount(Number(e.target.value))} required />
           <Input label="Expiry date (optional)" type="date" value={expiry} onChange={e => setExpiry(e.target.value)} />
           <Button type="submit" className="w-full" loading={saving}>Add to stock</Button>
         </form>
       </Modal>
+
+      {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { Button } from '../ui/Button.js';
 import { Input } from '../ui/Input.js';
 import { Spinner } from '../ui/Spinner.js';
 import { showToast } from '../ui/Toast.js';
+import { syncAddShoppingItem, syncPatchShoppingItem, syncDeleteShoppingItem, syncClearShopping } from '../../lib/sync.js';
+import { getCachedShopping } from '../../lib/db.js';
 
 export function ShoppingTab({ pantryId }: { pantryId: number }) {
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -13,7 +15,16 @@ export function ShoppingTab({ pantryId }: { pantryId: number }) {
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
-    api.getShopping(pantryId).then(setItems).catch(() => showToast('Failed to load shopping list', 'error')).finally(() => setLoading(false));
+    if (navigator.onLine) {
+      api.getShopping(pantryId)
+        .then(setItems)
+        .catch(() => showToast('Failed to load shopping list', 'error'))
+        .finally(() => setLoading(false));
+    } else {
+      getCachedShopping(pantryId)
+        .then(items => setItems(items as any))
+        .finally(() => setLoading(false));
+    }
   }, [pantryId]);
 
   async function handleAdd(e: React.FormEvent) {
@@ -21,9 +32,9 @@ export function ShoppingTab({ pantryId }: { pantryId: number }) {
     if (!newItem.trim()) return;
     setAdding(true);
     try {
-      await api.addShoppingItem(pantryId, { custom_name: newItem.trim(), quantity: 1 });
-      const updated = await api.getShopping(pantryId);
-      setItems(updated);
+      await syncAddShoppingItem(pantryId, { custom_name: newItem.trim(), quantity: 1 });
+      const updated = await (navigator.onLine ? api.getShopping(pantryId) : getCachedShopping(pantryId));
+      setItems(updated as any);
       setNewItem('');
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -33,11 +44,10 @@ export function ShoppingTab({ pantryId }: { pantryId: number }) {
   }
 
   async function toggleCheck(item: ShoppingItem) {
-    const now = new Date().toISOString();
     const newChecked = !item.checked;
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: newChecked } : i));
     try {
-      await api.patchShoppingItem(pantryId, item.id, { checked: newChecked, updated_at: now });
+      await syncPatchShoppingItem(pantryId, item.id, { checked: newChecked });
     } catch {
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: item.checked } : i));
       showToast('Failed to update', 'error');
@@ -47,10 +57,10 @@ export function ShoppingTab({ pantryId }: { pantryId: number }) {
   async function handleDelete(item: ShoppingItem) {
     setItems(prev => prev.filter(i => i.id !== item.id));
     try {
-      await api.deleteShoppingItem(pantryId, item.id);
+      await syncDeleteShoppingItem(pantryId, item.id);
     } catch {
-      const updated = await api.getShopping(pantryId);
-      setItems(updated);
+      const updated = navigator.onLine ? await api.getShopping(pantryId) : await getCachedShopping(pantryId);
+      setItems(updated as any);
       showToast('Failed to remove', 'error');
     }
   }
@@ -60,11 +70,11 @@ export function ShoppingTab({ pantryId }: { pantryId: number }) {
     if (!checkedIds.length) return;
     setItems(prev => prev.filter(i => !i.checked));
     try {
-      await api.clearShopping(pantryId, checkedIds);
+      await syncClearShopping(pantryId, checkedIds);
       showToast('Cleared checked items', 'success');
     } catch {
-      const updated = await api.getShopping(pantryId);
-      setItems(updated);
+      const updated = navigator.onLine ? await api.getShopping(pantryId) : await getCachedShopping(pantryId);
+      setItems(updated as any);
       showToast('Failed to clear', 'error');
     }
   }

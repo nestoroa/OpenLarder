@@ -7,6 +7,7 @@ import { ActivityTab } from './tabs/ActivityTab.js';
 import { SettingsTab } from './tabs/SettingsTab.js';
 import { ToastContainer } from './ui/Toast.js';
 import { Spinner } from './ui/Spinner.js';
+import { fullRefresh, registerSyncListener } from '../lib/sync.js';
 
 type Tab = 'stock' | 'shopping' | 'activity' | 'settings';
 
@@ -24,9 +25,14 @@ export default function PantryTabs({ pantryId }: { pantryId: number }) {
 
   useEffect(() => {
     api.getPantry(pantryId)
-      .then(setPantry)
+      .then(async (p) => {
+        setPantry(p);
+        if (navigator.onLine) await fullRefresh(pantryId);
+      })
       .catch(() => { window.location.href = '/pantries'; })
       .finally(() => setLoading(false));
+
+    return registerSyncListener();
   }, [pantryId]);
 
   if (loading) return <div className="flex items-center justify-center h-full"><Spinner className="w-8 h-8" /></div>;

@@ -3,6 +3,7 @@ import { api } from '../../lib/api.js';
 import type { PantryEvent } from '../../lib/types.js';
 import { Spinner } from '../ui/Spinner.js';
 import { showToast } from '../ui/Toast.js';
+import { getCachedEvents } from '../../lib/db.js';
 
 function eventDescription(event: PantryEvent): string {
   try {
@@ -44,6 +45,19 @@ export function ActivityTab({ pantryId }: { pantryId: number }) {
   const lastEventIdRef = useRef<number | undefined>(undefined);
 
   const loadFirst = useCallback(async () => {
+    if (!navigator.onLine) {
+      try {
+        const cached = await getCachedEvents(pantryId);
+        const sorted = [...cached].sort((a: any, b: any) => b.id - a.id).slice(0, 50);
+        setEvents(sorted as any);
+        setHasMore(false);
+        lastEventIdRef.current = sorted[sorted.length - 1]?.id;
+      } finally {
+        setOffline(true);
+        setLoading(false);
+      }
+      return;
+    }
     try {
       const { events: e, has_more } = await api.getEvents(pantryId);
       setEvents(e);
