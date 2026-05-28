@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "astro build --watch & node --env-file=.env --import tsx/esm entry.mjs",
-    "build": "astro build",
-    "start": "node --import tsx/esm entry.mjs",
+    "build": "astro build && tsc --project tsconfig.server.json --noEmitOnError false",
+    "start": "node entry.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

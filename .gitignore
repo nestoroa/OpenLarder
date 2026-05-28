@@ -1,5 +1,8 @@
 node_modules/
 dist/
+# Compiled server TS → JS (generated during build, not committed)
+server/**/*.js
+server/**/*.js.map
 *.db
 *.db-shm
 *.db-wal
