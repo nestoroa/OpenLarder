@@ -7,7 +7,7 @@ import { Modal } from '../ui/Modal.js';
 import { Spinner } from '../ui/Spinner.js';
 import { showToast } from '../ui/Toast.js';
 import { syncUpsertStock, syncDeleteStock } from '../../lib/sync.js';
-import { getCachedStock, getCachedSpaces } from '../../lib/db.js';
+import { getCachedStock, getCachedSpaces, getCachedProductByBarcode } from '../../lib/db.js';
 import { BarcodeScanner } from '../BarcodeScanner.js';
 
 export function expiryClass(expiry: string | null): string {
@@ -110,8 +110,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
     setShowScanner(false);
     setScannedProductId(null);
     try {
-      const { getCachedProductByBarcode } = await import('../../lib/db.js');
-      const cached = await getCachedProductByBarcode(barcode) as any;
+     const cached = await getCachedProductByBarcode(barcode) as any;
       if (cached) {
         setProductName(cached.name);
         setScannedBarcode(barcode);

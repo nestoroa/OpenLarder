@@ -148,7 +148,8 @@ export async function purgeErroredEntries(): Promise<void> {
   const db = await getIdb();
   const all = await db.getAll('offline_queue') as OfflineQueueEntry[];
   for (const entry of all) {
-    if (entry.status === 'discarded' || entry.status === 'error') {
+    // Only purge permanently-failed entries — keep 'error' for retry on next drain
+    if (entry.status === 'discarded') {
       await db.delete('offline_queue', entry.id);
     }
   }

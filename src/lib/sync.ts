@@ -61,6 +61,9 @@ export async function syncUpsertStock(
 export async function syncDeleteStock(pantryId: number, itemId: number): Promise<void> {
   if (isOnline()) {
     await api.deleteStock(pantryId, itemId);
+    // Refresh IDB cache so offline sessions see the delete immediately
+    const stock = await api.getStock(pantryId);
+    await saveStock(pantryId, stock);
   } else {
     const cached = await getCachedStock(pantryId);
     await saveStock(pantryId, cached.filter(s => s.id !== itemId));
