@@ -23,10 +23,13 @@ router.post('/join', requireAuth, async (req, res) => {
   if (db.getMemberRole(d(), pantry.id, req.session.userId!)) {
     return res.status(409).json({ error: 'Already a member' });
   }
-  invitesDb.consumeInvite(d(), invite.id, req.session.userId!);
-  db.addMember(d(), pantry.id, req.session.userId!);
   const user = getUserById(d(), req.session.userId!) as any;
-  eventsDb.logEvent(d(), pantry.id, req.session.userId!, 'member_joined', { user_name: user?.name ?? '', invite_type: 'code' });
+  // Atomic: consume invite + add member in one transaction
+  d().transaction(() => {
+    invitesDb.consumeInvite(d(), invite.id, req.session.userId!);
+    db.addMember(d(), pantry.id, req.session.userId!);
+    eventsDb.logEvent(d(), pantry.id, req.session.userId!, 'member_joined', { user_name: user?.name ?? '', invite_type: 'code' });
+  })();
   res.json({ pantry_id: pantry.id });
 });
 

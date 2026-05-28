@@ -31,8 +31,9 @@ router.delete('/:id/spaces/:spaceId', requireAuth, requireMember, requireOwner, 
   if (count > 0) {
     return res.status(409).json({ error: `Remove ${count} item(s) from this space first` });
   }
-  eventsDb.logEvent(d(), (req as any).pantryId, req.session.userId!, 'storage_space_deleted', { space_name: space.name });
+  // Delete first, then log — avoids orphaned event if delete throws
   spacesDb.deleteSpace(d(), spaceId);
+  eventsDb.logEvent(d(), (req as any).pantryId, req.session.userId!, 'storage_space_deleted', { space_name: space.name });
   res.json({ ok: true });
 });
 

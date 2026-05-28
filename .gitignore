@@ -7,3 +7,6 @@ dist/
 .env.local
 .DS_Store
 client_secret*.json
+.astro/
+coverage/
+*.log

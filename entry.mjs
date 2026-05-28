@@ -17,6 +17,11 @@ import shoppingRouter from './server/routes/shopping.js';
 import eventsRouter from './server/routes/events.js';
 import { errorHandler } from './server/middleware/errors.js';
 
+if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+  console.error('SESSION_SECRET must be set in production');
+  process.exit(1);
+}
+
 const app = express();
 const db = getDb();
 runSchema(db);

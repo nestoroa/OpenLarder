@@ -40,11 +40,14 @@ inviteUseRouter.post('/use', requireAuth, (req, res) => {
   if (pantriesDb.getMemberRole(d(), invite.pantry_id, req.session.userId!)) {
     return res.status(409).json({ error: 'Already a member' });
   }
-  invitesDb.consumeInvite(d(), invite.id, req.session.userId!);
-  pantriesDb.addMember(d(), invite.pantry_id, req.session.userId!);
   const user = getUserById(d(), req.session.userId!) as any;
-  eventsDb.logEvent(d(), invite.pantry_id, req.session.userId!, 'member_joined', {
-    user_name: user?.name ?? '', invite_type: 'link',
-  });
+  // Atomic: consume invite + add member in one transaction
+  d().transaction(() => {
+    invitesDb.consumeInvite(d(), invite.id, req.session.userId!);
+    pantriesDb.addMember(d(), invite.pantry_id, req.session.userId!);
+    eventsDb.logEvent(d(), invite.pantry_id, req.session.userId!, 'member_joined', {
+      user_name: user?.name ?? '', invite_type: 'link',
+    });
+  })();
   res.json({ pantry_id: invite.pantry_id });
 });
