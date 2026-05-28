@@ -4,9 +4,12 @@ import Base from '../layouts/Base.astro';
 <Base title="Sign in — OpenLarder">
   <main class="flex flex-col items-center justify-center min-h-full px-4 py-16">
     <div class="w-full max-w-sm space-y-8 text-center">
-      <div>
-        <h1 class="text-3xl font-bold text-green-700">OpenLarder</h1>
-        <p class="mt-2 text-gray-500">Your shared household pantry</p>
+      <div class="flex flex-col items-center gap-4">
+        <img src="/icons/logo.svg" alt="OpenLarder" class="w-24 h-24 text-green-700" style="color: #15803d" />
+        <div>
+          <h1 class="text-3xl font-bold text-green-700">OpenLarder</h1>
+          <p class="mt-2 text-gray-500">Your shared household pantry</p>
+        </div>
       </div>
       <a
         href="/auth/google"
