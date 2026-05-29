@@ -467,107 +467,180 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
         </div>
       </div>
 
+      {/* Search input */}
+      <Input
+        placeholder="Search by name or brand…"
+        value={searchQuery}
+        onChange={e => setSearchQuery(e.target.value)}
+      />
+
+      {/* Filter row */}
+      <div className="flex gap-2 items-center">
+        <select
+          value={filterSpace ?? ''}
+          onChange={e => setFilterSpace(e.target.value === '' ? null : Number(e.target.value))}
+          className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
+        >
+          <option value="">All spaces</option>
+          {spaces.map(s => (
+            <option key={s.id} value={s.id}>{s.icon} {s.name}</option>
+          ))}
+        </select>
+
+        <select
+          value={filterExpiry ?? ''}
+          onChange={e => setFilterExpiry(e.target.value === '' ? null : e.target.value)}
+          className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
+        >
+          <option value="">All expiry</option>
+          {EXPIRY_BUCKETS.map(b => (
+            <option key={b} value={b}>{b}</option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          onClick={() => setFilterZeroStock(v => !v)}
+          className={`rounded-xl border px-3 py-2 text-sm min-h-[44px] whitespace-nowrap transition-colors ${
+            filterZeroStock
+              ? 'border-gray-800 bg-gray-800 text-white'
+              : 'border-gray-200 bg-white text-gray-500'
+          }`}
+        >
+          Out of stock
+        </button>
+      </div>
+
+      {/* Active filter indicator */}
+      {isFiltered && (
+        <div className="flex items-center justify-between text-xs text-gray-400">
+          <span>Showing {filteredItems.length} of {stock.length} items</span>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-blue-500 hover:text-blue-600 font-medium"
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
+
       {spaces.length === 0 && (
         <p className="text-center text-gray-400 text-sm py-8">No storage spaces yet. Add one in Settings.</p>
       )}
 
-      {groups.map(({ key, label, icon, items }) => (
-        <section key={key}>
-          {label && (
-            <h3 className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              {icon && <span>{icon}</span>} {label}
-            </h3>
-          )}
-          {items.length === 0 && <p className="text-xs text-gray-400 pl-6">Empty</p>}
-          <ul className="space-y-2">
-            {items.map(item => {
-              const isExpanded = expandedItemId === item.id;
-              const isClosing = closingItemId === item.id;
-              const hasWarning = expiryWarning(item.expiry_date);
-              return (
-                <li
-                  key={item.id}
-                  className={`rounded-xl border bg-white overflow-hidden cursor-pointer ${expiryClass(item.expiry_date)}`}
-                  onClick={() => openItem(item.id)}
-                >
-                  {/* Header row — always visible */}
-                  <div className="flex items-start justify-between gap-2 p-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm leading-snug">
-                        {hasWarning && <span className="mr-1">⚠️</span>}
-                        <span className="font-bold">{item.count}</span>
-                        <span className="text-gray-500"> x </span>
-                        <span className="font-medium">{item.product.name}</span>
-                      </div>
-                      {(item.product.brand || expiryText(item.expiry_date)) && (
-                        <div className="flex justify-between items-center mt-0.5">
-                          <span className="text-xs text-gray-400">{item.product.brand ?? ''}</span>
-                          {expiryText(item.expiry_date) && (
-                            <span className={`text-xs font-medium ml-2 ${(expiryDays(item.expiry_date) ?? 0) < 0 ? 'text-red-500' : 'text-yellow-600'}`}>
-                              {expiryText(item.expiry_date)}
-                            </span>
+      {isFiltered && filteredItems.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-12 text-center">
+          <p className="text-gray-400 text-sm">No items match your filters.</p>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-blue-500 hover:text-blue-600 text-sm font-medium"
+          >
+            Clear filters
+          </button>
+        </div>
+      ) : (
+        <>
+          {groups.map(({ key, label, icon, items }) => (
+            <section key={key}>
+              {label && (
+                <h3 className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  {icon && <span>{icon}</span>} {label}
+                </h3>
+              )}
+              {items.length === 0 && <p className="text-xs text-gray-400 pl-6">Empty</p>}
+              <ul className="space-y-2">
+                {items.map(item => {
+                  const isExpanded = expandedItemId === item.id;
+                  const isClosing = closingItemId === item.id;
+                  const hasWarning = expiryWarning(item.expiry_date);
+                  return (
+                    <li
+                      key={item.id}
+                      className={`rounded-xl border bg-white overflow-hidden cursor-pointer ${expiryClass(item.expiry_date)}`}
+                      onClick={() => openItem(item.id)}
+                    >
+                      {/* Header row — always visible */}
+                      <div className="flex items-start justify-between gap-2 p-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm leading-snug">
+                            {hasWarning && <span className="mr-1">⚠️</span>}
+                            <span className="font-bold">{item.count}</span>
+                            <span className="text-gray-500"> x </span>
+                            <span className="font-medium">{item.product.name}</span>
+                          </div>
+                          {(item.product.brand || expiryText(item.expiry_date)) && (
+                            <div className="flex justify-between items-center mt-0.5">
+                              <span className="text-xs text-gray-400">{item.product.brand ?? ''}</span>
+                              {expiryText(item.expiry_date) && (
+                                <span className={`text-xs font-medium ml-2 ${(expiryDays(item.expiry_date) ?? 0) < 0 ? 'text-red-500' : 'text-yellow-600'}`}>
+                                  {expiryText(item.expiry_date)}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
-                      )}
-                    </div>
-                    {isExpanded && (
-                      <button
-                        onClick={e => { e.stopPropagation(); closeExpanded(); }}
-                        className="text-gray-400 hover:text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center text-lg leading-none flex-shrink-0 -mt-1 -mr-1 animate-fade-in animate-duration-fast"
-                        aria-label="Close"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
+                        {isExpanded && (
+                          <button
+                            onClick={e => { e.stopPropagation(); closeExpanded(); }}
+                            className="text-gray-400 hover:text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center text-lg leading-none flex-shrink-0 -mt-1 -mr-1 animate-fade-in animate-duration-fast"
+                            aria-label="Close"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
 
-                  {/* Expanded action row — outer div animates height, inner div animates opacity */}
-                  {(isExpanded || isClosing) && (
-                    <div
-                      className={`overflow-hidden transition-[max-height] ease-out duration-[180ms] ${isClosing ? 'max-h-0' : 'max-h-20'}`}
-                    >
-                    <div
-                      className={`border-t border-gray-100 px-3 py-2 flex items-center gap-2 animate-duration-fast animate-fill-mode-forwards ${isClosing ? 'animate-fade-out' : 'animate-fade-in-down'}`}
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <button
-                        onClick={() => adjustCount(item, -1)}
-                        className="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 min-h-[44px] min-w-[44px]"
-                      >−</button>
-                      <span className="w-8 text-center font-semibold text-sm">{item.count}</span>
-                      <button
-                        onClick={() => adjustCount(item, 1)}
-                        className="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 min-h-[44px] min-w-[44px]"
-                      >+</button>
-                      <div className="flex-1" />
-                      {expiryDateLabel(item.expiry_date) && (
-                        <span className={`text-xs font-medium ${(expiryDays(item.expiry_date) ?? 0) < 0 ? 'text-red-500' : 'text-yellow-600'}`}>
-                          {expiryDateLabel(item.expiry_date)}
-                        </span>
+                      {/* Expanded action row — outer div animates height, inner div animates opacity */}
+                      {(isExpanded || isClosing) && (
+                        <div
+                          className={`overflow-hidden transition-[max-height] ease-out duration-[180ms] ${isClosing ? 'max-h-0' : 'max-h-20'}`}
+                        >
+                        <div
+                          className={`border-t border-gray-100 px-3 py-2 flex items-center gap-2 animate-duration-fast animate-fill-mode-forwards ${isClosing ? 'animate-fade-out' : 'animate-fade-in-down'}`}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <button
+                            onClick={() => adjustCount(item, -1)}
+                            className="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 min-h-[44px] min-w-[44px]"
+                          >−</button>
+                          <span className="w-8 text-center font-semibold text-sm">{item.count}</span>
+                          <button
+                            onClick={() => adjustCount(item, 1)}
+                            className="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 min-h-[44px] min-w-[44px]"
+                          >+</button>
+                          <div className="flex-1" />
+                          {expiryDateLabel(item.expiry_date) && (
+                            <span className={`text-xs font-medium ${(expiryDays(item.expiry_date) ?? 0) < 0 ? 'text-red-500' : 'text-yellow-600'}`}>
+                              {expiryDateLabel(item.expiry_date)}
+                            </span>
+                          )}
+                          <button
+                            onClick={() => openEdit(item)}
+                            title="Edit item"
+                            className="text-gray-300 hover:text-blue-500 min-h-[44px] min-w-[44px] flex items-center justify-center text-sm"
+                          >✏️</button>
+                          <button
+                            onClick={() => handleDelete(item)}
+                            className="text-gray-300 hover:text-red-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                          >🗑</button>
+                          <button
+                            onClick={() => handleAddToShopping(item)}
+                            title="Add to shopping list"
+                            className="text-gray-300 hover:text-green-500 min-h-[44px] min-w-[44px] flex items-center justify-center text-sm"
+                          >🛒</button>
+                        </div>
+                        </div>
                       )}
-                      <button
-                        onClick={() => openEdit(item)}
-                        title="Edit item"
-                        className="text-gray-300 hover:text-blue-500 min-h-[44px] min-w-[44px] flex items-center justify-center text-sm"
-                      >✏️</button>
-                      <button
-                        onClick={() => handleDelete(item)}
-                        className="text-gray-300 hover:text-red-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                      >🗑</button>
-                      <button
-                        onClick={() => handleAddToShopping(item)}
-                        title="Add to shopping list"
-                        className="text-gray-300 hover:text-green-500 min-h-[44px] min-w-[44px] flex items-center justify-center text-sm"
-                       >🛒</button>
-                     </div>
-                   </div>
-                   )}
-                 </li>
-              );
-            })}
-          </ul>
-        </section>
-      ))}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </>
+      )}
 
       {/* Add Item modal */}
       <Modal open={addModal} onClose={() => { setAddModal(false); setProductName(''); setBrand(''); setCount(1); setExpiry(''); setScannedBarcode(null); setScannedProductId(null); }} title="Add Item"
