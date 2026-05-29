@@ -12,6 +12,83 @@ import { BarcodeScanner } from '../BarcodeScanner.js';
 
 const ADMIN_EMAIL = 'nestor.j.o.a@gmail.com';
 
+// ── Sort / group types ────────────────────────────────────────────────────────
+
+export type SortOption =
+  | 'expiry-asc' | 'expiry-desc'
+  | 'name-asc'   | 'name-desc'
+  | 'brand-asc'  | 'brand-desc';
+
+export type GroupField = 'space' | 'none' | 'expiry';
+
+export type Group = { key: string; label: string; icon?: string; items: StockItem[] };
+
+const EXPIRY_BUCKETS = ['Expired', 'This week', 'This month', 'Later', 'No expiry'] as const;
+
+// ── Pure helpers (exported for tests) ────────────────────────────────────────
+
+export function getExpiryBucket(expiry_date: string | null): string {
+  if (!expiry_date) return 'No expiry';
+  const diffMs = new Date(expiry_date).getTime() - Date.now();
+  const diff = Math.ceil(diffMs / 86400000);
+  if (diff < 0) return 'Expired';
+  if (diff <= 7) return 'This week';
+  if (diff <= 30) return 'This month';
+  return 'Later';
+}
+
+export function sortItems(items: StockItem[], sortOpt: SortOption): StockItem[] {
+  const lastDash = sortOpt.lastIndexOf('-');
+  const field = sortOpt.slice(0, lastDash);
+  const dir = sortOpt.slice(lastDash + 1) as 'asc' | 'desc';
+  return [...items].sort((a, b) => {
+    let cmp = 0;
+    if (field === 'name') {
+      cmp = a.product.name.localeCompare(b.product.name);
+    } else if (field === 'brand') {
+      const ba = a.product.brand ?? '';
+      const bb = b.product.brand ?? '';
+      if (!ba && bb) return 1;
+      if (ba && !bb) return -1;
+      cmp = ba.localeCompare(bb);
+    } else if (field === 'expiry') {
+      const ea = a.expiry_date;
+      const eb = b.expiry_date;
+      if (!ea && eb) return 1;
+      if (ea && !eb) return -1;
+      if (!ea && !eb) return 0;
+      cmp = ea! < eb! ? -1 : ea! > eb! ? 1 : 0;
+    }
+    return dir === 'asc' ? cmp : -cmp;
+  });
+}
+
+export function groupItems(items: StockItem[], groupBy: GroupField, spaces: StorageSpace[]): Group[] {
+  if (groupBy === 'none') {
+    return [{ key: 'all', label: '', items }];
+  }
+  if (groupBy === 'space') {
+    return spaces
+      .map(space => ({
+        key: String(space.id),
+        label: space.name,
+        icon: space.icon,
+        items: items.filter(i => i.storage_space.id === space.id),
+      }))
+      .filter(g => g.items.length > 0);
+  }
+  // expiry range
+  const buckets: Record<string, StockItem[]> = {};
+  for (const item of items) {
+    const b = getExpiryBucket(item.expiry_date);
+    if (!buckets[b]) buckets[b] = [];
+    buckets[b].push(item);
+  }
+  return EXPIRY_BUCKETS
+    .filter(b => buckets[b]?.length)
+    .map(b => ({ key: b, label: b, items: buckets[b] }));
+}
+
 export function expiryClass(expiry: string | null): string {
   if (!expiry) return '';
   const days = Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);
@@ -79,6 +156,23 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
   const [editSpaceId, setEditSpaceId] = useState<number | null>(null);
   const [editSaving, setEditSaving] = useState(false);
 
+  // Sort / group — persisted across tab switches via localStorage
+  const VALID_GROUP: GroupField[] = ['space', 'none', 'expiry'];
+  const VALID_SORT: SortOption[] = [
+    'expiry-asc', 'expiry-desc', 'name-asc', 'name-desc', 'brand-asc', 'brand-desc',
+  ];
+  const [groupBy, setGroupBy] = useState<GroupField>(() => {
+    const v = localStorage.getItem('openlarder:stock:groupBy');
+    return VALID_GROUP.includes(v as GroupField) ? (v as GroupField) : 'space';
+  });
+  const [sortOpt, setSortOpt] = useState<SortOption>(() => {
+    const v = localStorage.getItem('openlarder:stock:sortOpt');
+    return VALID_SORT.includes(v as SortOption) ? (v as SortOption) : 'expiry-asc';
+  });
+
+  useEffect(() => { localStorage.setItem('openlarder:stock:groupBy', groupBy); }, [groupBy]);
+  useEffect(() => { localStorage.setItem('openlarder:stock:sortOpt', sortOpt); }, [sortOpt]);
+
   useEffect(() => {
     const stockLoad = navigator.onLine
       ? Promise.all([api.getStock(pantryId), api.getSpaces(pantryId)])
@@ -115,12 +209,8 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
     setExpandedItemId(id);
   }
 
-  const bySpace = useMemo(() => {
-    return spaces.map(space => ({
-      space,
-      items: stock.filter(s => s.storage_space.id === space.id),
-    }));
-  }, [spaces, stock]);
+  const sortedItems = useMemo(() => sortItems(stock, sortOpt), [stock, sortOpt]);
+  const groups = useMemo(() => groupItems(sortedItems, groupBy, spaces), [sortedItems, groupBy, spaces]);
 
   async function adjustCount(item: StockItem, delta: number) {
     const newCount = Math.max(0, item.count + delta);
@@ -306,15 +396,48 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
         </div>
       </div>
 
+      {/* Group by / Sort by controls */}
+      <div className="flex gap-3">
+        <div className="flex-1">
+          <label className="block text-xs text-gray-400 mb-1">Group by</label>
+          <select
+            value={groupBy}
+            onChange={e => setGroupBy(e.target.value as GroupField)}
+            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
+          >
+            <option value="space">Storage space</option>
+            <option value="none">Flat list</option>
+            <option value="expiry">Expiry range</option>
+          </select>
+        </div>
+        <div className="flex-1">
+          <label className="block text-xs text-gray-400 mb-1">Sort by</label>
+          <select
+            value={sortOpt}
+            onChange={e => setSortOpt(e.target.value as SortOption)}
+            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
+          >
+            <option value="expiry-asc">Expiry: soonest first</option>
+            <option value="expiry-desc">Expiry: latest first</option>
+            <option value="name-asc">Name: A → Z</option>
+            <option value="name-desc">Name: Z → A</option>
+            <option value="brand-asc">Brand: A → Z</option>
+            <option value="brand-desc">Brand: Z → A</option>
+          </select>
+        </div>
+      </div>
+
       {spaces.length === 0 && (
         <p className="text-center text-gray-400 text-sm py-8">No storage spaces yet. Add one in Settings.</p>
       )}
 
-      {bySpace.map(({ space, items }) => (
-        <section key={space.id}>
-          <h3 className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-            <span>{space.icon}</span> {space.name}
-          </h3>
+      {groups.map(({ key, label, icon, items }) => (
+        <section key={key}>
+          {label && (
+            <h3 className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+              {icon && <span>{icon}</span>} {label}
+            </h3>
+          )}
           {items.length === 0 && <p className="text-xs text-gray-400 pl-6">Empty</p>}
           <ul className="space-y-2">
             {items.map(item => {
