@@ -160,6 +160,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
   const [scannedBarcode, setScannedBarcode] = useState<string | null>(null);
   const [scannedProductId, setScannedProductId] = useState<number | null>(null);
   const [brand, setBrand] = useState('');
+  const [pendingProductData, setPendingProductData] = useState<{ name: string; brand: string | null } | null>(null);
 
   // Expand/collapse
   const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
@@ -314,6 +315,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
       setAddModal(false);
       setProductName(''); setBrand(''); setCount(1); setExpiry('');
       setScannedBarcode(null); setScannedProductId(null);
+      setPendingProductData(null);
       showToast('Item added', 'success');
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -325,29 +327,37 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
   async function handleScan(barcode: string) {
     setShowScanner(false);
     setScannedProductId(null);
+    setPendingProductData(null);
     try {
-     const cached = await getCachedProductByBarcode(barcode) as any;
+      const cached = await getCachedProductByBarcode(barcode) as any;
       if (cached) {
+        // Local cache hit — auto-fill immediately, no confirmation needed
         setProductName(cached.name);
+        setBrand(cached.brand ?? '');
         setScannedBarcode(barcode);
         setScannedProductId(cached.id);
-        setAddModal(true);
         return;
       }
       const product = await api.lookupBarcode(barcode);
-      setProductName(product.name ?? '');
       setScannedBarcode(barcode);
       setScannedProductId(product.id);
-      setAddModal(true);
+      // Open Food Facts hit — let user confirm before filling fields
+      setPendingProductData({ name: product.name ?? '', brand: product.brand });
     } catch (err: any) {
       if (err.status === 404) {
         setScannedBarcode(barcode);
         setProductName('');
-        setAddModal(true);
       } else {
         showToast('Failed to look up barcode', 'error');
       }
     }
+  }
+
+  function applyPendingData() {
+    if (!pendingProductData) return;
+    setProductName(pendingProductData.name);
+    setBrand(pendingProductData.brand ?? '');
+    setPendingProductData(null);
   }
 
   async function handleDelete(item: StockItem) {
@@ -484,7 +494,6 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
               <line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/>
             </svg>
           </button>
-          <Button variant="secondary" onClick={() => setShowScanner(true)} className="text-sm px-3 py-2">📷 Scan</Button>
           <Button variant="primary" onClick={() => setAddModal(true)} className="text-sm px-3 py-2">+ Add item</Button>
         </div>
       </div>
@@ -713,7 +722,15 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
       )}
 
       {/* Add Item modal */}
-      <Modal open={addModal} onClose={() => { setAddModal(false); setProductName(''); setBrand(''); setCount(1); setExpiry(''); setScannedBarcode(null); setScannedProductId(null); }} title="Add Item"
+      <Modal
+        open={addModal}
+        onClose={() => {
+          setAddModal(false);
+          setProductName(''); setBrand(''); setCount(1); setExpiry('');
+          setScannedBarcode(null); setScannedProductId(null);
+          setPendingProductData(null);
+        }}
+        title="Add Item"
         footer={<Button form="add-item-form" type="submit" className="w-full" loading={saving}>Add to stock</Button>}
       >
         <form id="add-item-form" onSubmit={handleAddStock} className="space-y-4">
@@ -725,9 +742,54 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
               {spaces.map(s => <option key={s.id} value={s.id}>{s.icon} {s.name}</option>)}
             </select>
           </div>
+
+          {/* Scan barcode button */}
+          <button
+            type="button"
+            onClick={() => setShowScanner(true)}
+            className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-300 py-2.5 text-sm text-gray-600 hover:bg-gray-50 min-h-[44px] transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            {scannedBarcode ? 'Re-scan barcode' : 'Scan barcode'}
+          </button>
+
+          {/* Scanned barcode indicator */}
           {scannedBarcode && (
-            <p className="text-xs text-green-600">Barcode: {scannedBarcode}</p>
+            <p className="text-xs text-green-600 -mt-2">Barcode: {scannedBarcode}</p>
           )}
+
+          {/* Open Food Facts confirmation card */}
+          {pendingProductData && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 space-y-2">
+              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Found on Open Food Facts</p>
+              <div>
+                <p className="text-sm font-medium text-gray-900">{pendingProductData.name}</p>
+                {pendingProductData.brand && (
+                  <p className="text-xs text-gray-500">{pendingProductData.brand}</p>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={applyPendingData}
+                  className="flex-1 rounded-lg bg-blue-600 text-white text-sm font-medium py-1.5 hover:bg-blue-700 transition-colors"
+                >
+                  Apply
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPendingProductData(null)}
+                  className="flex-1 rounded-lg border border-gray-300 bg-white text-sm text-gray-600 py-1.5 hover:bg-gray-50 transition-colors"
+                >
+                  Ignore
+                </button>
+              </div>
+            </div>
+          )}
+
           <Input label="Product name" value={productName} onChange={e => setProductName(e.target.value)} required placeholder="e.g. Oat milk" />
           <Input label="Brand (optional)" value={brand} onChange={e => setBrand(e.target.value)} placeholder="e.g. Carbonell" />
           <Input label="Count" type="number" min={0} value={count} onChange={e => setCount(Number(e.target.value))} required />
