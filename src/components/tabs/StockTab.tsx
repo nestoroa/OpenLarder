@@ -358,8 +358,11 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
                     )}
                   </div>
 
-                  {/* Expanded action row */}
+                  {/* Expanded action row — outer div animates height, inner div animates opacity */}
                   {(isExpanded || isClosing) && (
+                    <div
+                      className={`overflow-hidden transition-[max-height] ease-out duration-[180ms] ${isClosing ? 'max-h-0' : 'max-h-20'}`}
+                    >
                     <div
                       className={`border-t border-gray-100 px-3 py-2 flex items-center gap-2 animate-duration-fast animate-fill-mode-forwards ${isClosing ? 'animate-fade-out' : 'animate-fade-in-down'}`}
                       onClick={e => e.stopPropagation()}
@@ -392,10 +395,11 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
                         onClick={() => handleAddToShopping(item)}
                         title="Add to shopping list"
                         className="text-gray-300 hover:text-green-500 min-h-[44px] min-w-[44px] flex items-center justify-center text-sm"
-                      >🛒</button>
-                    </div>
-                  )}
-                </li>
+                       >🛒</button>
+                     </div>
+                   </div>
+                   )}
+                 </li>
               );
             })}
           </ul>
