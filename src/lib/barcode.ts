@@ -17,12 +17,14 @@ export async function startScan(
     await r.decodeFromConstraints(
       { video: { facingMode: { ideal: 'environment' } } },
       videoEl,
-      (result, err) => {
+      (result) => {
+        // Callback errors are always NotFoundException ("no barcode in this frame") —
+        // a normal per-frame signal, not a real error. Ignore them.
         if (result) { onResult(result.getText()); r.reset(); }
-        else if (err && err.name !== 'NotFoundException') onError(err as Error);
       }
     );
   } catch (err) {
+    // Promise rejections are real camera errors (permission denied, no device, etc.)
     onError(err as Error);
   }
 }
