@@ -429,8 +429,10 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
       </Modal>
 
       {/* Edit Item modal */}
-      <Modal open={!!editItem} onClose={closeEdit} title="Edit Item">
-        <form onSubmit={handleEditSave} className="space-y-4">
+      <Modal open={!!editItem} onClose={closeEdit} title="Edit Item"
+        footer={<Button form="edit-item-form" type="submit" className="w-full" loading={editSaving}>Save</Button>}
+      >
+        <form id="edit-item-form" onSubmit={handleEditSave} className="space-y-4">
 
           {/* Local / Global scope toggle — admin only */}
           {isAdmin && (
@@ -506,7 +508,6 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
             onChange={e => setEditExpiry(e.target.value)}
           />
 
-          <Button type="submit" className="w-full" loading={editSaving}>Save</Button>
         </form>
       </Modal>
 

@@ -5,9 +5,10 @@ interface Props {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  footer?: ReactNode;
 }
 
-export function Modal({ open, onClose, title, children }: Props) {
+export function Modal({ open, onClose, title, children, footer }: Props) {
   const [visible, setVisible] = useState(false);
   const [closing, setClosing] = useState(false);
 
@@ -36,7 +37,7 @@ export function Modal({ open, onClose, title, children }: Props) {
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50
+      className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center pt-16 px-4 pb-4 sm:p-4 bg-black/50
         ${closing ? 'animate-fade-out' : 'animate-fade-in'} animate-duration-fast animate-fill-mode-forwards`}
       onClick={onClose}
     >
@@ -50,6 +51,7 @@ export function Modal({ open, onClose, title, children }: Props) {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 min-h-[44px] min-w-[44px] flex items-center justify-center">✕</button>
         </div>
         <div className="p-4 overflow-y-auto flex-1 min-h-0">{children}</div>
+        {footer && <div className="p-4 border-t flex-shrink-0">{footer}</div>}
       </div>
     </div>
   );
