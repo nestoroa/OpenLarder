@@ -89,6 +89,27 @@ export function groupItems(items: StockItem[], groupBy: GroupField, spaces: Stor
     .map(b => ({ key: b, label: b, items: buckets[b] }));
 }
 
+export function filterItems(
+  items: StockItem[],
+  query: string,
+  spaceId: number | null,
+  expiryBucket: string | null,
+  zeroStockOnly: boolean,
+): StockItem[] {
+  const q = query.trim().toLowerCase();
+  return items.filter(item => {
+    if (q) {
+      const name  = item.product.name.toLowerCase();
+      const brand = (item.product.brand ?? '').toLowerCase();
+      if (!name.includes(q) && !brand.includes(q)) return false;
+    }
+    if (spaceId !== null && item.storage_space.id !== spaceId) return false;
+    if (expiryBucket !== null && getExpiryBucket(item.expiry_date) !== expiryBucket) return false;
+    if (zeroStockOnly && item.count !== 0) return false;
+    return true;
+  });
+}
+
 export function expiryClass(expiry: string | null): string {
   if (!expiry) return '';
   const days = Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);

@@ -4,6 +4,7 @@ import {
   getExpiryBucket,
   sortItems,
   groupItems,
+  filterItems,
 } from '../../src/components/tabs/StockTab.js';
 import type { StockItem, StorageSpace } from '../../src/lib/types.js';
 
@@ -256,5 +257,107 @@ describe('groupItems', () => {
     const groups = groupItems([withExpiry(null, 1)], 'expiry', []);
     expect(groups).toHaveLength(1);
     expect(groups[0].label).toBe('No expiry');
+  });
+});
+
+// ── filterItems ───────────────────────────────────────────────────────────────
+
+describe('filterItems', () => {
+  // Helpers
+  function withCount(count: number, id = 1): StockItem {
+    return makeItem({ id, count });
+  }
+
+  it('no filters active → returns all items unchanged', () => {
+    const items = [makeItem({ id: 1 }), makeItem({ id: 2 })];
+    expect(filterItems(items, '', null, null, false)).toEqual(items);
+  });
+
+  it('does not mutate the input array', () => {
+    const items = [makeItem({ id: 1 }), makeItem({ id: 2 })];
+    filterItems(items, 'x', null, null, false);
+    expect(items).toHaveLength(2);
+  });
+
+  // ── text search ─────────────────────────────────────────────────────────────
+
+  it('query matches product name (case-insensitive)', () => {
+    const items = [withName('Oat Milk', 1), withName('Eggs', 2)];
+    expect(filterItems(items, 'oat', null, null, false)).toEqual([items[0]]);
+  });
+
+  it('query matches brand (case-insensitive)', () => {
+    const items = [withBrand('Alpro', 1), withBrand('Generic', 2)];
+    expect(filterItems(items, 'ALPRO', null, null, false)).toEqual([items[0]]);
+  });
+
+  it('query matches neither name nor brand → empty', () => {
+    const items = [withName('Eggs', 1), withBrand('Generic', 2)];
+    expect(filterItems(items, 'zzz', null, null, false)).toEqual([]);
+  });
+
+  it('empty query (whitespace only) is treated as no filter', () => {
+    const items = [makeItem({ id: 1 }), makeItem({ id: 2 })];
+    expect(filterItems(items, '   ', null, null, false)).toEqual(items);
+  });
+
+  it('null brand is treated as empty string for search (no crash)', () => {
+    const item = makeItem({ id: 1 }); // brand is null by default
+    expect(() => filterItems([item], 'anything', null, null, false)).not.toThrow();
+  });
+
+  // ── space filter ─────────────────────────────────────────────────────────────
+
+  it('space filter: only items in that space pass', () => {
+    const a = withSpace(1, 1);
+    const b = withSpace(2, 2);
+    expect(filterItems([a, b], '', 1, null, false)).toEqual([a]);
+  });
+
+  it('space filter null → all spaces pass', () => {
+    const items = [withSpace(1, 1), withSpace(2, 2)];
+    expect(filterItems(items, '', null, null, false)).toEqual(items);
+  });
+
+  // ── expiry bucket filter ──────────────────────────────────────────────────────
+
+  it('expiry filter: only items in that bucket pass', () => {
+    const expired = withExpiry('2020-01-01', 1);
+    const later   = withExpiry(daysFromNow(60), 2);
+    const noExp   = withExpiry(null, 3);
+    expect(filterItems([expired, later, noExp], '', null, 'Expired', false)).toEqual([expired]);
+    expect(filterItems([expired, later, noExp], '', null, 'Later', false)).toEqual([later]);
+    expect(filterItems([expired, later, noExp], '', null, 'No expiry', false)).toEqual([noExp]);
+  });
+
+  it('expiry filter null → all buckets pass', () => {
+    const items = [withExpiry('2020-01-01', 1), withExpiry(null, 2)];
+    expect(filterItems(items, '', null, null, false)).toEqual(items);
+  });
+
+  // ── zero stock filter ─────────────────────────────────────────────────────────
+
+  it('zero stock filter: only count === 0 items pass', () => {
+    const zero    = withCount(0, 1);
+    const nonZero = withCount(3, 2);
+    expect(filterItems([zero, nonZero], '', null, null, true)).toEqual([zero]);
+  });
+
+  it('zero stock filter false → all counts pass', () => {
+    const items = [withCount(0, 1), withCount(5, 2)];
+    expect(filterItems(items, '', null, null, false)).toEqual(items);
+  });
+
+  // ── multiple predicates AND-ed ────────────────────────────────────────────────
+
+  it('multiple active filters are AND-ed', () => {
+    const a = { ...makeItem({ id: 1, count: 0 }), product: { ...makeItem().product, name: 'Milk', global_name: 'Milk' }, storage_space: { id: 1, name: 'Fridge', icon: '🧊' } };
+    const b = { ...makeItem({ id: 2, count: 0 }), product: { ...makeItem().product, name: 'Milk', global_name: 'Milk' }, storage_space: { id: 2, name: 'Pantry', icon: '🥫' } };
+    const c = { ...makeItem({ id: 3, count: 0 }), product: { ...makeItem().product, name: 'Eggs', global_name: 'Eggs' }, storage_space: { id: 1, name: 'Fridge', icon: '🧊' } };
+    const d = { ...makeItem({ id: 4, count: 2 }), product: { ...makeItem().product, name: 'Milk', global_name: 'Milk' }, storage_space: { id: 1, name: 'Fridge', icon: '🧊' } };
+
+    const result = filterItems([a, b, c, d], 'milk', 1, null, true);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(1);
   });
 });
