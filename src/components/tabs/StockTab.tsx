@@ -24,6 +24,20 @@ function expiryWarning(expiry: string | null): boolean {
   return days <= 7;
 }
 
+function expiryDays(expiry: string | null): number | null {
+  if (!expiry) return null;
+  return Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);
+}
+
+function expiryText(expiry: string | null): string | null {
+  const days = expiryDays(expiry);
+  if (days === null) return null;
+  if (days < 0) return 'Expired';
+  if (days === 0) return 'Expires today';
+  if (days <= 7) return `Expires in ${days}d`;
+  return null;
+}
+
 export function StockTab({ pantryId, role }: { pantryId: number; role: string }) {
   const [stock, setStock] = useState<StockItem[]>([]);
   const [spaces, setSpaces] = useState<StorageSpace[]>([]);
@@ -194,8 +208,15 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
                         <span className="text-gray-500"> x </span>
                         <span className="font-medium">{item.product.name}</span>
                       </div>
-                      {item.product.brand && (
-                        <div className="text-xs text-gray-400 mt-0.5">{item.product.brand}</div>
+                      {(item.product.brand || expiryText(item.expiry_date)) && (
+                        <div className="flex justify-between items-center mt-0.5">
+                          <span className="text-xs text-gray-400">{item.product.brand ?? ''}</span>
+                          {expiryText(item.expiry_date) && (
+                            <span className={`text-xs font-medium ml-2 ${(expiryDays(item.expiry_date) ?? 0) < 0 ? 'text-red-500' : 'text-yellow-600'}`}>
+                              {expiryText(item.expiry_date)}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                     {isExpanded && (
