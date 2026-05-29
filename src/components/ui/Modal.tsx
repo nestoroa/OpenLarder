@@ -41,15 +41,15 @@ export function Modal({ open, onClose, title, children }: Props) {
       onClick={onClose}
     >
       <div
-        className={`w-full max-w-md bg-white rounded-2xl shadow-xl
+        className={`w-full max-w-md bg-white rounded-2xl shadow-xl flex flex-col max-h-[90dvh]
           ${closing ? 'animate-slide-out-bottom' : 'animate-slide-in-bottom'} animate-duration-fast animate-fill-mode-forwards`}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
           <h2 className="text-base font-semibold">{title}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 min-h-[44px] min-w-[44px] flex items-center justify-center">✕</button>
         </div>
-        <div className="p-4">{children}</div>
+        <div className="p-4 overflow-y-auto flex-1 min-h-0">{children}</div>
       </div>
     </div>
   );
