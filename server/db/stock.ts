@@ -4,13 +4,23 @@ export function getStock(db: Database.Database, pantryId: number) {
   return db.prepare(`
     SELECT
       si.id, si.count, si.expiry_date, si.updated_at,
-      p.id as product_id, p.name as product_name, p.brand, p.image_url, p.barcode,
-      ss.id as space_id, ss.name as space_name, ss.icon as space_icon
+      p.id        AS product_id,
+      p.name      AS global_name,
+      p.brand     AS global_brand,
+      p.image_url, p.barcode, p.uuid,
+      pp.local_name,
+      pp.local_brand,
+      COALESCE(pp.local_name,  p.name)  AS product_name,
+      COALESCE(pp.local_brand, p.brand) AS brand,
+      ss.id   AS space_id,
+      ss.name AS space_name,
+      ss.icon AS space_icon
     FROM StockItem si
     JOIN Product p ON p.id = si.product_id
+    LEFT JOIN PantryProduct pp ON pp.product_id = p.id AND pp.pantry_id = si.pantry_id
     JOIN StorageSpace ss ON ss.id = si.storage_space_id
     WHERE si.pantry_id = ?
-    ORDER BY ss.sort_order, p.name
+    ORDER BY ss.sort_order, COALESCE(pp.local_name, p.name)
   `).all(pantryId);
 }
 

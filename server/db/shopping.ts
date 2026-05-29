@@ -5,9 +5,11 @@ export function getShoppingList(db: Database.Database, pantryId: number) {
     SELECT
       sl.id, sl.quantity, sl.checked, sl.checked_at, sl.added_at, sl.updated_at,
       sl.custom_name,
-      p.id as product_id, p.name as product_name
+      p.id AS product_id,
+      COALESCE(pp.local_name, p.name) AS product_name
     FROM ShoppingListItem sl
     LEFT JOIN Product p ON p.id = sl.product_id
+    LEFT JOIN PantryProduct pp ON pp.product_id = p.id AND pp.pantry_id = sl.pantry_id
     WHERE sl.pantry_id = ?
     ORDER BY sl.added_at
   `).all(pantryId);

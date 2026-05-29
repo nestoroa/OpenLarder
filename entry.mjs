@@ -5,7 +5,7 @@ import { dirname, join } from 'path';
 import passport from 'passport';
 import SqliteStore from 'better-sqlite3-session-store';
 import { getDb } from './server/db/connection.js';
-import { runSchema } from './server/db/schema.js';
+import { runSchema, runMigrations } from './server/db/schema.js';
 
 // Route imports (created in Tasks 4-9)
 import authRouter from './server/routes/auth.js';
@@ -33,6 +33,7 @@ app.set('trust proxy', 1);
 
 const db = getDb();
 runSchema(db);
+runMigrations(db);
 
 const Store = SqliteStore(session);
 app.use(express.json());

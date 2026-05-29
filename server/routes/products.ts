@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/requireAuth.js';
 import * as productsDb from '../db/products.js';
+import * as usersDb from '../db/users.js';
 import { getDb } from '../db/connection.js';
+
+const ADMIN_EMAIL = 'nestor.j.o.a@gmail.com';
 
 const router = Router();
 const d = () => getDb();
@@ -41,6 +44,17 @@ router.post('/', requireAuth, (req, res) => {
   if (!name) return res.status(400).json({ error: 'name required' });
   const id = productsDb.createProduct(d(), { name, brand: brand ?? null, barcode: barcode ?? null, image_url: undefined });
   res.status(201).json(productsDb.getProductById(d(), id as number));
+});
+
+// PATCH /api/products/:id — admin-only global product edit
+router.patch('/:id', requireAuth, (req, res) => {
+  const user = usersDb.getUserById(d(), req.session.userId!) as any;
+  if (!user || user.email !== ADMIN_EMAIL) return res.status(403).json({ error: 'Forbidden' });
+  const { name, brand, barcode } = req.body;
+  if (!name) return res.status(400).json({ error: 'name required' });
+  const updated = productsDb.updateProduct(d(), parseInt(req.params.id, 10), { name, brand: brand ?? null, barcode: barcode ?? null });
+  if (!updated) return res.status(404).json({ error: 'Product not found' });
+  res.json(updated);
 });
 
 export default router;

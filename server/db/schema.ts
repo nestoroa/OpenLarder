@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { randomUUID } from 'crypto';
 
 export function runSchema(db: Database.Database): void {
   db.exec(`
@@ -54,7 +55,17 @@ export function runSchema(db: Database.Database): void {
       name        TEXT    NOT NULL,
       brand       TEXT,
       image_url   TEXT,
+      uuid        TEXT    UNIQUE,
       created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS PantryProduct (
+      pantry_id   INTEGER NOT NULL REFERENCES Pantry(id) ON DELETE CASCADE,
+      product_id  INTEGER NOT NULL REFERENCES Product(id) ON DELETE CASCADE,
+      local_name  TEXT,
+      local_brand TEXT,
+      updated_at  TEXT    NOT NULL,
+      PRIMARY KEY (pantry_id, product_id)
     );
 
     CREATE TABLE IF NOT EXISTS StockItem (
@@ -93,4 +104,35 @@ export function runSchema(db: Database.Database): void {
       created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
     );
   `);
+}
+
+export function runMigrations(db: Database.Database): void {
+  // Add uuid column to Product if it doesn't exist (existing deployments)
+  try {
+    db.exec(`ALTER TABLE Product ADD COLUMN uuid TEXT UNIQUE`);
+  } catch {
+    // Column already exists — safe to ignore
+  }
+
+  // Add PantryProduct table if it doesn't exist (existing deployments)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS PantryProduct (
+      pantry_id   INTEGER NOT NULL REFERENCES Pantry(id) ON DELETE CASCADE,
+      product_id  INTEGER NOT NULL REFERENCES Product(id) ON DELETE CASCADE,
+      local_name  TEXT,
+      local_brand TEXT,
+      updated_at  TEXT    NOT NULL,
+      PRIMARY KEY (pantry_id, product_id)
+    )
+  `);
+
+  // Backfill uuid for any products that don't have one yet
+  const missing = db.prepare(`SELECT id FROM Product WHERE uuid IS NULL`).all() as { id: number }[];
+  const update = db.prepare(`UPDATE Product SET uuid = ? WHERE id = ?`);
+  const backfill = db.transaction(() => {
+    for (const row of missing) {
+      update.run(randomUUID(), row.id);
+    }
+  });
+  backfill();
 }

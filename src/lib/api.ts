@@ -70,5 +70,13 @@ export const api = {
     request<{ id: number; name: string; brand: string | null; barcode: string | null }>(`/api/products/barcode/${code}`),
   createProduct: (body: { name: string; brand?: string; barcode?: string }) =>
     request<{ id: number; name: string; barcode: string | null }>('/api/products', { method: 'POST', body: JSON.stringify(body) }),
+  updateProduct: (id: number, body: { name: string; brand?: string | null; barcode?: string | null }) =>
+    request<{ id: number; name: string; brand: string | null; barcode: string | null }>(
+      `/api/products/${id}`, { method: 'PATCH', body: JSON.stringify(body) }
+    ),
+  upsertLocalProduct: (pantryId: number, productId: number, body: { local_name?: string | null; local_brand?: string | null }) =>
+    request<{ ok: true }>(
+      `/api/pantries/${pantryId}/products/${productId}/local`, { method: 'PUT', body: JSON.stringify(body) }
+    ),
   getMe: () => request<{ id: number; name: string; email: string; avatar_url: string | null }>('/api/me'),
 };

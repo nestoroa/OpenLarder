@@ -1,5 +1,6 @@
 node_modules/
 dist/
+AGENTS.md
 # Compiled server TS → JS (generated during build, not committed)
 server/**/*.js
 server/**/*.js.map
@@ -8,6 +9,8 @@ server/**/*.js.map
 *.db-wal
 .env
 .env.local
+.env.production
+.playwright-cli/
 .DS_Store
 client_secret*.json
 .astro/

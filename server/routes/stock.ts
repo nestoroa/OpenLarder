@@ -7,6 +7,7 @@ import * as spacesDb from '../db/spaces.js';
 import * as eventsDb from '../db/events.js';
 import { getDb } from '../db/connection.js';
 
+
 const router = Router({ mergeParams: true });
 const d = () => getDb();
 
@@ -18,10 +19,32 @@ router.get('/:id/stock', requireAuth, requireMember, (req, res) => {
     count: r.count,
     expiry_date: r.expiry_date,
     updated_at: r.updated_at,
-    product: { id: r.product_id, name: r.product_name, brand: r.brand, image_url: r.image_url, barcode: r.barcode },
+    product: {
+      id: r.product_id,
+      name: r.product_name,       // COALESCE(local_name, global_name)
+      brand: r.brand,             // COALESCE(local_brand, global_brand)
+      image_url: r.image_url,
+      barcode: r.barcode,
+      uuid: r.uuid,
+      local_name: r.local_name,
+      local_brand: r.local_brand,
+      global_name: r.global_name,
+      global_brand: r.global_brand,
+    },
     storage_space: { id: r.space_id, name: r.space_name, icon: r.space_icon },
   }));
   res.json(items);
+});
+
+// PUT /api/pantries/:id/products/:productId/local — upsert pantry-local name/brand override
+router.put('/:id/products/:productId/local', requireAuth, requireMember, (req, res) => {
+  const productId = parseInt(req.params.productId, 10);
+  const { local_name, local_brand } = req.body;
+  productsDb.upsertPantryProduct(d(), (req as any).pantryId, productId, {
+    local_name: local_name ?? null,
+    local_brand: local_brand ?? null,
+  });
+  res.json({ ok: true });
 });
 
 // PUT /api/pantries/:id/stock

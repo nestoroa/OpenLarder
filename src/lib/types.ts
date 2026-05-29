@@ -16,10 +16,15 @@ export interface StorageSpace {
 
 export interface Product {
   id: number;
-  name: string;
-  brand: string | null;
+  name: string;           // display name: COALESCE(local_name, global_name)
+  brand: string | null;   // display brand: COALESCE(local_brand, global_brand)
   image_url: string | null;
   barcode: string | null;
+  uuid: string;
+  local_name: string | null;
+  local_brand: string | null;
+  global_name: string;
+  global_brand: string | null;
 }
 
 export interface StockItem {
@@ -27,7 +32,7 @@ export interface StockItem {
   count: number;
   expiry_date: string | null;
   updated_at: string;
-  product: Pick<Product, 'id' | 'name' | 'brand' | 'image_url' | 'barcode'>;
+  product: Pick<Product, 'id' | 'name' | 'brand' | 'image_url' | 'barcode' | 'uuid' | 'local_name' | 'local_brand' | 'global_name' | 'global_brand'>;
   storage_space: Pick<StorageSpace, 'id' | 'name' | 'icon'>;
 }
 

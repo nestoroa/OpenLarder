@@ -10,6 +10,8 @@ import { syncUpsertStock, syncDeleteStock } from '../../lib/sync.js';
 import { getCachedStock, getCachedSpaces, getCachedProductByBarcode } from '../../lib/db.js';
 import { BarcodeScanner } from '../BarcodeScanner.js';
 
+const ADMIN_EMAIL = 'nestor.j.o.a@gmail.com';
+
 export function expiryClass(expiry: string | null): string {
   if (!expiry) return '';
   const days = Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);
@@ -47,6 +49,9 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
   const [stock, setStock] = useState<StockItem[]>([]);
   const [spaces, setSpaces] = useState<StorageSpace[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Add item modal
   const [addModal, setAddModal] = useState(false);
   const [selectedSpace, setSelectedSpace] = useState<number | null>(null);
   const [productName, setProductName] = useState('');
@@ -57,19 +62,34 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
   const [scannedBarcode, setScannedBarcode] = useState<string | null>(null);
   const [scannedProductId, setScannedProductId] = useState<number | null>(null);
   const [brand, setBrand] = useState('');
+
+  // Expand/collapse
   const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
 
+  // Edit modal
+  const [editItem, setEditItem] = useState<StockItem | null>(null);
+  const [editScope, setEditScope] = useState<'local' | 'global'>('local');
+  const [editName, setEditName] = useState('');
+  const [editBrand, setEditBrand] = useState('');
+  const [editBarcode, setEditBarcode] = useState('');
+  const [editCount, setEditCount] = useState(1);
+  const [editExpiry, setEditExpiry] = useState('');
+  const [editSpaceId, setEditSpaceId] = useState<number | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+
   useEffect(() => {
-    if (navigator.onLine) {
-      Promise.all([api.getStock(pantryId), api.getSpaces(pantryId)])
-        .then(([s, sp]) => { setStock(s); setSpaces(sp); })
-        .catch(() => showToast('Failed to load stock', 'error'))
-        .finally(() => setLoading(false));
-    } else {
-      Promise.all([getCachedStock(pantryId), getCachedSpaces(pantryId)])
-        .then(([s, sp]) => { setStock(s as any); setSpaces(sp as any); })
-        .finally(() => setLoading(false));
-    }
+    const stockLoad = navigator.onLine
+      ? Promise.all([api.getStock(pantryId), api.getSpaces(pantryId)])
+          .then(([s, sp]) => { setStock(s); setSpaces(sp); })
+          .catch(() => showToast('Failed to load stock', 'error'))
+      : Promise.all([getCachedStock(pantryId), getCachedSpaces(pantryId)])
+          .then(([s, sp]) => { setStock(s as any); setSpaces(sp as any); });
+
+    stockLoad.finally(() => setLoading(false));
+
+    api.getMe()
+      .then(me => setIsAdmin(me.email === ADMIN_EMAIL))
+      .catch(() => {});
   }, [pantryId]);
 
   const bySpace = useMemo(() => {
@@ -153,7 +173,6 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
   }
 
   async function handleDelete(item: StockItem) {
-    // Optimistic remove — restore on failure
     setStock(prev => prev.filter(s => s.id !== item.id));
     try {
       await syncDeleteStock(pantryId, item.id);
@@ -169,6 +188,86 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
       showToast(`${item.product.name} added to shopping list`, 'success');
     } catch (err: any) {
       showToast(err.message, 'error');
+    }
+  }
+
+  function openEdit(item: StockItem) {
+    setEditItem(item);
+    setEditScope('local');
+    setEditName(item.product.local_name ?? item.product.global_name);
+    setEditBrand(item.product.local_brand ?? item.product.global_brand ?? '');
+    setEditBarcode(item.product.barcode ?? '');
+    setEditCount(item.count);
+    setEditExpiry(item.expiry_date ?? '');
+    setEditSpaceId(item.storage_space.id);
+  }
+
+  function closeEdit() {
+    setEditItem(null);
+    setEditScope('local');
+  }
+
+  function handleScopeToggle(scope: 'local' | 'global') {
+    if (!editItem) return;
+    setEditScope(scope);
+    if (scope === 'local') {
+      setEditName(editItem.product.local_name ?? editItem.product.global_name);
+      setEditBrand(editItem.product.local_brand ?? editItem.product.global_brand ?? '');
+    } else {
+      setEditName(editItem.product.global_name);
+      setEditBrand(editItem.product.global_brand ?? '');
+      setEditBarcode(editItem.product.barcode ?? '');
+    }
+  }
+
+  async function handleEditSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editItem || !editSpaceId) return;
+    setEditSaving(true);
+    try {
+      const now = new Date().toISOString();
+      const spaceChanged = editSpaceId !== editItem.storage_space.id;
+
+      // Stock fields: if space changed, delete old + create new; else upsert in place
+      if (spaceChanged) {
+        await syncDeleteStock(pantryId, editItem.id);
+        await syncUpsertStock(pantryId, {
+          storage_space_id: editSpaceId,
+          product_id: editItem.product.id,
+          count: editCount,
+          expiry_date: editExpiry || undefined,
+        });
+      } else {
+        await syncUpsertStock(pantryId, {
+          storage_space_id: editItem.storage_space.id,
+          product_id: editItem.product.id,
+          count: editCount,
+          expiry_date: editExpiry || undefined,
+        });
+      }
+
+      // Product fields
+      if (editScope === 'local') {
+        await api.upsertLocalProduct(pantryId, editItem.product.id, {
+          local_name: editName.trim() || null,
+          local_brand: editBrand.trim() || null,
+        });
+      } else {
+        await api.updateProduct(editItem.product.id, {
+          name: editName.trim(),
+          brand: editBrand.trim() || null,
+          barcode: editBarcode.trim() || null,
+        });
+      }
+
+      const updated = await api.getStock(pantryId);
+      setStock(updated);
+      closeEdit();
+      showToast('Item updated', 'success');
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -257,6 +356,11 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
                         </span>
                       )}
                       <button
+                        onClick={() => openEdit(item)}
+                        title="Edit item"
+                        className="text-gray-300 hover:text-blue-500 min-h-[44px] min-w-[44px] flex items-center justify-center text-sm"
+                      >✏️</button>
+                      <button
                         onClick={() => handleDelete(item)}
                         className="text-gray-300 hover:text-red-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
                       >🗑</button>
@@ -274,6 +378,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
         </section>
       ))}
 
+      {/* Add Item modal */}
       <Modal open={addModal} onClose={() => { setAddModal(false); setProductName(''); setBrand(''); setCount(1); setExpiry(''); setScannedBarcode(null); setScannedProductId(null); }} title="Add Item">
         <form onSubmit={handleAddStock} className="space-y-4">
           <div>
@@ -292,6 +397,88 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
           <Input label="Count" type="number" min={0} value={count} onChange={e => setCount(Number(e.target.value))} required />
           <Input label="Expiry date (optional)" type="date" value={expiry} onChange={e => setExpiry(e.target.value)} />
           <Button type="submit" className="w-full" loading={saving}>Add to stock</Button>
+        </form>
+      </Modal>
+
+      {/* Edit Item modal */}
+      <Modal open={!!editItem} onClose={closeEdit} title="Edit Item">
+        <form onSubmit={handleEditSave} className="space-y-4">
+
+          {/* Local / Global scope toggle — admin only */}
+          {isAdmin && (
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+              <button
+                type="button"
+                onClick={() => handleScopeToggle('local')}
+                className={`flex-1 py-2 font-medium transition-colors ${editScope === 'local' ? 'bg-gray-800 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+              >
+                Local
+              </button>
+              <button
+                type="button"
+                onClick={() => handleScopeToggle('global')}
+                className={`flex-1 py-2 font-medium transition-colors ${editScope === 'global' ? 'bg-gray-800 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+              >
+                Global
+              </button>
+            </div>
+          )}
+
+          {/* Product fields */}
+          <Input
+            label={editScope === 'local' ? 'Local name' : 'Global name'}
+            value={editName}
+            onChange={e => setEditName(e.target.value)}
+            required
+            placeholder="Product name"
+          />
+          <Input
+            label={editScope === 'local' ? 'Local brand (optional)' : 'Global brand (optional)'}
+            value={editBrand}
+            onChange={e => setEditBrand(e.target.value)}
+            placeholder="Brand"
+          />
+          {editScope === 'global' && (
+            <Input
+              label="Barcode"
+              value={editBarcode}
+              onChange={e => setEditBarcode(e.target.value)}
+              placeholder="e.g. 8410051001234"
+            />
+          )}
+
+          {/* Divider */}
+          <hr className="border-gray-100" />
+
+          {/* Stock fields */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Storage space</label>
+            <select
+              value={editSpaceId ?? ''}
+              onChange={e => setEditSpaceId(Number(e.target.value))}
+              required
+              className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm min-h-[44px]"
+            >
+              <option value="">Select space…</option>
+              {spaces.map(s => <option key={s.id} value={s.id}>{s.icon} {s.name}</option>)}
+            </select>
+          </div>
+          <Input
+            label="Count"
+            type="number"
+            min={0}
+            value={editCount}
+            onChange={e => setEditCount(Number(e.target.value))}
+            required
+          />
+          <Input
+            label="Expiry date (optional)"
+            type="date"
+            value={editExpiry}
+            onChange={e => setEditExpiry(e.target.value)}
+          />
+
+          <Button type="submit" className="w-full" loading={editSaving}>Save</Button>
         </form>
       </Modal>
 
