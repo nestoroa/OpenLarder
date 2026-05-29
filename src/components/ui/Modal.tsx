@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 interface Props {
   open: boolean;
@@ -11,6 +11,7 @@ interface Props {
 export function Modal({ open, onClose, title, children, footer }: Props) {
   const [visible, setVisible] = useState(false);
   const [closing, setClosing] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -33,12 +34,46 @@ export function Modal({ open, onClose, title, children, footer }: Props) {
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
+  // Adjust overlay to the visual viewport so the keyboard never covers modal content.
+  // On iOS Safari the keyboard overlays the layout viewport without resizing it;
+  // visualViewport tracks only the visible area above the keyboard.
+  useEffect(() => {
+    if (!visible) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const update = () => {
+      const el = overlayRef.current;
+      if (!el) return;
+      el.style.top = `${vv.offsetTop}px`;
+      el.style.height = `${vv.height}px`;
+      el.style.bottom = 'auto';
+    };
+
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    update();
+
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+      const el = overlayRef.current;
+      if (el) {
+        el.style.top = '';
+        el.style.height = '';
+        el.style.bottom = '';
+      }
+    };
+  }, [visible]);
+
   if (!visible) return null;
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center pt-16 px-4 pb-4 sm:p-4 bg-black/50
+      ref={overlayRef}
+      className={`fixed inset-x-0 top-0 z-50 flex items-end sm:items-center justify-center pt-16 px-4 pb-14 sm:pb-4 bg-black/50
         ${closing ? 'animate-fade-out' : 'animate-fade-in'} animate-duration-fast animate-fill-mode-forwards`}
+      style={{ height: '100dvh' }}
       onClick={onClose}
     >
       <div

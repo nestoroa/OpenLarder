@@ -530,8 +530,10 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
       ))}
 
       {/* Add Item modal */}
-      <Modal open={addModal} onClose={() => { setAddModal(false); setProductName(''); setBrand(''); setCount(1); setExpiry(''); setScannedBarcode(null); setScannedProductId(null); }} title="Add Item">
-        <form onSubmit={handleAddStock} className="space-y-4">
+      <Modal open={addModal} onClose={() => { setAddModal(false); setProductName(''); setBrand(''); setCount(1); setExpiry(''); setScannedBarcode(null); setScannedProductId(null); }} title="Add Item"
+        footer={<Button form="add-item-form" type="submit" className="w-full" loading={saving}>Add to stock</Button>}
+      >
+        <form id="add-item-form" onSubmit={handleAddStock} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Storage space</label>
             <select value={selectedSpace ?? ''} onChange={e => setSelectedSpace(Number(e.target.value))} required
@@ -547,7 +549,6 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
           <Input label="Brand (optional)" value={brand} onChange={e => setBrand(e.target.value)} placeholder="e.g. Carbonell" />
           <Input label="Count" type="number" min={0} value={count} onChange={e => setCount(Number(e.target.value))} required />
           <Input label="Expiry date (optional)" type="date" value={expiry} onChange={e => setExpiry(e.target.value)} />
-          <Button type="submit" className="w-full" loading={saving}>Add to stock</Button>
         </form>
       </Modal>
 

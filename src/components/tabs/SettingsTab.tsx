@@ -173,8 +173,10 @@ export function SettingsTab({ pantryId, pantry, onPantryUpdate }: Props) {
         </div>
       </Modal>
 
-      <Modal open={spaceModal} onClose={() => setSpaceModal(false)} title="Add Storage Space">
-        <form onSubmit={handleAddSpace} className="space-y-4">
+      <Modal open={spaceModal} onClose={() => setSpaceModal(false)} title="Add Storage Space"
+        footer={<Button form="add-space-form" type="submit" className="w-full" disabled={!spaceName}>Add Space</Button>}
+      >
+        <form id="add-space-form" onSubmit={handleAddSpace} className="space-y-4">
           <Input label="Name" value={spaceName} onChange={e => setSpaceName(e.target.value)} placeholder="e.g. Fridge" required />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Icon</label>
@@ -185,7 +187,6 @@ export function SettingsTab({ pantryId, pantry, onPantryUpdate }: Props) {
               ))}
             </div>
           </div>
-          <Button type="submit" className="w-full" disabled={!spaceName}>Add Space</Button>
         </form>
       </Modal>
 
