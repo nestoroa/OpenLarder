@@ -107,11 +107,18 @@ export function runSchema(db: Database.Database): void {
 }
 
 export function runMigrations(db: Database.Database): void {
-  // Add uuid column to Product if it doesn't exist (existing deployments)
+  // Add uuid column to Product if it doesn't exist (existing deployments).
+  // SQLite does not allow UNIQUE in ALTER TABLE ADD COLUMN, so we add the
+  // column first and create a separate unique index afterward.
   try {
-    db.exec(`ALTER TABLE Product ADD COLUMN uuid TEXT UNIQUE`);
+    db.exec(`ALTER TABLE Product ADD COLUMN uuid TEXT`);
   } catch {
     // Column already exists — safe to ignore
+  }
+  try {
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_product_uuid ON Product(uuid)`);
+  } catch {
+    // Index already exists — safe to ignore
   }
 
   // Add PantryProduct table if it doesn't exist (existing deployments)
