@@ -32,10 +32,15 @@ function expiryDays(expiry: string | null): number | null {
 function expiryText(expiry: string | null): string | null {
   const days = expiryDays(expiry);
   if (days === null) return null;
-  if (days < 0) return 'Expired';
+  if (days < 0) return `Expired ${Math.abs(days)}d ago`;
   if (days === 0) return 'Expires today';
   if (days <= 7) return `Expires in ${days}d`;
   return null;
+}
+
+function expiryDateLabel(expiry: string | null): string | null {
+  if (!expiry) return null;
+  return new Date(expiry).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 export function StockTab({ pantryId, role }: { pantryId: number; role: string }) {
@@ -246,6 +251,11 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
                         className="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 min-h-[44px] min-w-[44px]"
                       >+</button>
                       <div className="flex-1" />
+                      {expiryDateLabel(item.expiry_date) && (
+                        <span className={`text-xs font-medium ${(expiryDays(item.expiry_date) ?? 0) < 0 ? 'text-red-500' : 'text-yellow-600'}`}>
+                          {expiryDateLabel(item.expiry_date)}
+                        </span>
+                      )}
                       <button
                         onClick={() => handleDelete(item)}
                         className="text-gray-300 hover:text-red-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
