@@ -469,6 +469,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
 
       {/* Search input */}
       <Input
+        aria-label="Search items"
         placeholder="Search by name or brand…"
         value={searchQuery}
         onChange={e => setSearchQuery(e.target.value)}
@@ -477,6 +478,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
       {/* Filter row */}
       <div className="flex gap-2 items-center">
         <select
+          aria-label="Filter by space"
           value={filterSpace ?? ''}
           onChange={e => setFilterSpace(e.target.value === '' ? null : Number(e.target.value))}
           className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
@@ -488,6 +490,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
         </select>
 
         <select
+          aria-label="Filter by expiry"
           value={filterExpiry ?? ''}
           onChange={e => setFilterExpiry(e.target.value === '' ? null : e.target.value)}
           className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
@@ -500,6 +503,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
 
         <button
           type="button"
+          aria-pressed={filterZeroStock}
           onClick={() => setFilterZeroStock(v => !v)}
           className={`rounded-xl border px-3 py-2 text-sm min-h-[44px] whitespace-nowrap transition-colors ${
             filterZeroStock
@@ -518,7 +522,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
           <button
             type="button"
             onClick={clearFilters}
-            className="text-blue-500 hover:text-blue-600 font-medium"
+            className="text-blue-500 hover:text-blue-600 font-medium min-h-[44px] flex items-center"
           >
             Clear filters
           </button>
