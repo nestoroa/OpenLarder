@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { api } from '../../lib/api.js';
 import type { StockItem, StorageSpace } from '../../lib/types.js';
 import { Button } from '../ui/Button.js';
@@ -65,6 +65,8 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
 
   // Expand/collapse
   const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
+  const [closingItemId, setClosingItemId] = useState<number | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Edit modal
   const [editItem, setEditItem] = useState<StockItem | null>(null);
@@ -91,6 +93,27 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
       .then(me => setIsAdmin(me.email === ADMIN_EMAIL))
       .catch(() => {});
   }, [pantryId]);
+
+  function closeExpanded() {
+    if (expandedItemId === null) return;
+    const id = expandedItemId;
+    setExpandedItemId(null);
+    setClosingItemId(id);
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setClosingItemId(null), 180);
+  }
+
+  function openItem(id: number) {
+    if (expandedItemId === id) return;
+    // Animate out the previously open item
+    if (expandedItemId !== null) {
+      const prev = expandedItemId;
+      setClosingItemId(prev);
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+      closeTimer.current = setTimeout(() => setClosingItemId(null), 180);
+    }
+    setExpandedItemId(id);
+  }
 
   const bySpace = useMemo(() => {
     return spaces.map(space => ({
@@ -296,12 +319,13 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
           <ul className="space-y-2">
             {items.map(item => {
               const isExpanded = expandedItemId === item.id;
+              const isClosing = closingItemId === item.id;
               const hasWarning = expiryWarning(item.expiry_date);
               return (
                 <li
                   key={item.id}
                   className={`rounded-xl border bg-white overflow-hidden cursor-pointer ${expiryClass(item.expiry_date)}`}
-                  onClick={() => setExpandedItemId(item.id)}
+                  onClick={() => openItem(item.id)}
                 >
                   {/* Header row — always visible */}
                   <div className="flex items-start justify-between gap-2 p-3">
@@ -325,7 +349,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
                     </div>
                     {isExpanded && (
                       <button
-                        onClick={e => { e.stopPropagation(); setExpandedItemId(null); }}
+                        onClick={e => { e.stopPropagation(); closeExpanded(); }}
                         className="text-gray-400 hover:text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center text-lg leading-none flex-shrink-0 -mt-1 -mr-1 animate-fade-in animate-duration-fast"
                         aria-label="Close"
                       >
@@ -335,9 +359,9 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
                   </div>
 
                   {/* Expanded action row */}
-                  {isExpanded && (
+                  {(isExpanded || isClosing) && (
                     <div
-                      className="border-t border-gray-100 px-3 py-2 flex items-center gap-2 animate-fade-in-down animate-duration-fast"
+                      className={`border-t border-gray-100 px-3 py-2 flex items-center gap-2 animate-duration-fast animate-fill-mode-forwards ${isClosing ? 'animate-fade-out' : 'animate-fade-in-down'}`}
                       onClick={e => e.stopPropagation()}
                     >
                       <button
