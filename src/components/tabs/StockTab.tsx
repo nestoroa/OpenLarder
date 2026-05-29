@@ -191,6 +191,12 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
     return VALID_SORT.includes(v as SortOption) ? (v as SortOption) : 'expiry-asc';
   });
 
+  // Search / filter — ephemeral, not persisted
+  const [searchQuery,    setSearchQuery]    = useState('');
+  const [filterSpace,    setFilterSpace]    = useState<number | null>(null);
+  const [filterExpiry,   setFilterExpiry]   = useState<string | null>(null);
+  const [filterZeroStock, setFilterZeroStock] = useState(false);
+
   useEffect(() => { localStorage.setItem('openlarder:stock:groupBy', groupBy); }, [groupBy]);
   useEffect(() => { localStorage.setItem('openlarder:stock:sortOpt', sortOpt); }, [sortOpt]);
 
@@ -230,8 +236,21 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
     setExpandedItemId(id);
   }
 
-  const sortedItems = useMemo(() => sortItems(stock, sortOpt), [stock, sortOpt]);
+  const filteredItems = useMemo(
+    () => filterItems(stock, searchQuery, filterSpace, filterExpiry, filterZeroStock),
+    [stock, searchQuery, filterSpace, filterExpiry, filterZeroStock],
+  );
+  const sortedItems = useMemo(() => sortItems(filteredItems, sortOpt), [filteredItems, sortOpt]);
   const groups = useMemo(() => groupItems(sortedItems, groupBy, spaces), [sortedItems, groupBy, spaces]);
+
+  const isFiltered = searchQuery.trim() !== '' || filterSpace !== null || filterExpiry !== null || filterZeroStock;
+
+  function clearFilters() {
+    setSearchQuery('');
+    setFilterSpace(null);
+    setFilterExpiry(null);
+    setFilterZeroStock(false);
+  }
 
   async function adjustCount(item: StockItem, delta: number) {
     const newCount = Math.max(0, item.count + delta);
