@@ -45,7 +45,7 @@ export default function PantryTabs({ pantryId }: { pantryId: number }) {
         <h1 className="text-base font-semibold truncate flex-1">{pantry.display_name}</h1>
       </header>
 
-      <div className="flex-1 overflow-auto">
+      <div key={active} className="flex-1 overflow-auto animate-fade-in animate-duration-fast">
         {active === 'stock' && <StockTab pantryId={pantryId} role={pantry.role} />}
         {active === 'shopping' && <ShoppingTab pantryId={pantryId} />}
         {active === 'activity' && <ActivityTab pantryId={pantryId} />}

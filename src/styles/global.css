@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tailwind-animations";
 
 html, body {
   @apply h-full bg-gray-50 text-gray-900;

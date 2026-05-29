@@ -25,10 +25,14 @@ export function ToastContainer() {
   return (
     <div className="fixed bottom-20 left-0 right-0 flex flex-col items-center gap-2 z-50 px-4 pointer-events-none">
       {toasts.map(t => (
-        <div key={t.id} className={`
-          px-4 py-3 rounded-xl text-sm font-medium shadow-lg pointer-events-auto
-          ${t.type === 'error' ? 'bg-red-600 text-white' : t.type === 'success' ? 'bg-green-600 text-white' : 'bg-gray-800 text-white'}
-        `}>
+        <div
+          key={t.id}
+          className={`
+            px-4 py-3 rounded-xl text-sm font-medium shadow-lg pointer-events-auto
+            animate-slide-in-bottom animate-duration-fast
+            ${t.type === 'error' ? 'bg-red-600 text-white' : t.type === 'success' ? 'bg-green-600 text-white' : 'bg-gray-800 text-white'}
+          `}
+        >
           {t.text}
         </div>
       ))}

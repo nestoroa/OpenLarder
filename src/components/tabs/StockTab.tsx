@@ -326,7 +326,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
                     {isExpanded && (
                       <button
                         onClick={e => { e.stopPropagation(); setExpandedItemId(null); }}
-                        className="text-gray-400 hover:text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center text-lg leading-none flex-shrink-0 -mt-1 -mr-1"
+                        className="text-gray-400 hover:text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center text-lg leading-none flex-shrink-0 -mt-1 -mr-1 animate-fade-in animate-duration-fast"
                         aria-label="Close"
                       >
                         ✕
@@ -337,7 +337,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
                   {/* Expanded action row */}
                   {isExpanded && (
                     <div
-                      className="border-t border-gray-100 px-3 py-2 flex items-center gap-2"
+                      className="border-t border-gray-100 px-3 py-2 flex items-center gap-2 animate-fade-in-down animate-duration-fast"
                       onClick={e => e.stopPropagation()}
                     >
                       <button
