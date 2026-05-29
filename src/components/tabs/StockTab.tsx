@@ -198,8 +198,10 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
   const [filterZeroStock, setFilterZeroStock] = useState(false);
 
   // Panel visibility — ephemeral
-  const [showSearch,   setShowSearch]   = useState(false);
-  const [showControls, setShowControls] = useState(false);
+  const [showSearch,        setShowSearch]        = useState(false);
+  const [showControls,      setShowControls]      = useState(false);
+  const [isSearchClosing,   setIsSearchClosing]   = useState(false);
+  const [isControlsClosing, setIsControlsClosing] = useState(false);
 
   useEffect(() => { localStorage.setItem('openlarder:stock:groupBy', groupBy); }, [groupBy]);
   useEffect(() => { localStorage.setItem('openlarder:stock:sortOpt', sortOpt); }, [sortOpt]);
@@ -255,6 +257,24 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
     setFilterSpace(null);
     setFilterExpiry(null);
     setFilterZeroStock(false);
+  }
+
+  function toggleSearch() {
+    if (showSearch) {
+      setIsSearchClosing(true);
+      setTimeout(() => { setShowSearch(false); setIsSearchClosing(false); }, 180);
+    } else {
+      setShowSearch(true);
+    }
+  }
+
+  function toggleControls() {
+    if (showControls) {
+      setIsControlsClosing(true);
+      setTimeout(() => { setShowControls(false); setIsControlsClosing(false); }, 180);
+    } else {
+      setShowControls(true);
+    }
   }
 
   async function adjustCount(item: StockItem, delta: number) {
@@ -440,7 +460,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
             type="button"
             aria-label="Toggle search"
             aria-pressed={showSearch}
-            onClick={() => setShowSearch(v => !v)}
+            onClick={toggleSearch}
             className={`rounded-xl border px-3 py-2 text-sm min-h-[44px] min-w-[44px] transition-colors ${
               showSearch || searchQuery.trim() !== ''
                 ? 'border-gray-800 bg-gray-800 text-white'
@@ -451,7 +471,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
             type="button"
             aria-label="Toggle sort and filter"
             aria-pressed={showControls}
-            onClick={() => setShowControls(v => !v)}
+            onClick={toggleControls}
             className={`rounded-xl border px-3 py-2 text-sm min-h-[44px] min-w-[44px] transition-colors ${
               showControls || hasActiveControls
                 ? 'border-gray-800 bg-gray-800 text-white'
@@ -470,89 +490,95 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
       </div>
 
       {/* Search panel */}
-      {showSearch && (
-        <Input
-          aria-label="Search items"
-          placeholder="Search by name or brand…"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-        />
+      {(showSearch || isSearchClosing) && (
+        <div className={`overflow-hidden transition-[max-height] ease-out duration-[180ms] ${isSearchClosing ? 'max-h-0' : 'max-h-20'}`}>
+          <div className={`animate-duration-fast animate-fill-mode-forwards ${isSearchClosing ? 'animate-fade-out' : 'animate-fade-in-down'}`}>
+            <Input
+              aria-label="Search items"
+              placeholder="Search by name or brand…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
       )}
 
       {/* Controls panel: group / sort / filter */}
-      {showControls && (
-        <>
-          {/* Group by / Sort by */}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="block text-xs text-gray-400 mb-1">Group by</label>
-              <select
-                value={groupBy}
-                onChange={e => setGroupBy(e.target.value as GroupField)}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
-              >
-                <option value="space">Storage space</option>
-                <option value="none">Flat list</option>
-                <option value="expiry">Expiry range</option>
-              </select>
+      {(showControls || isControlsClosing) && (
+        <div className={`overflow-hidden transition-[max-height] ease-out duration-[180ms] ${isControlsClosing ? 'max-h-0' : 'max-h-56'}`}>
+          <div className={`space-y-3 animate-duration-fast animate-fill-mode-forwards ${isControlsClosing ? 'animate-fade-out' : 'animate-fade-in-down'}`}>
+            {/* Group by / Sort by */}
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="block text-xs text-gray-400 mb-1">Group by</label>
+                <select
+                  value={groupBy}
+                  onChange={e => setGroupBy(e.target.value as GroupField)}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
+                >
+                  <option value="space">Storage space</option>
+                  <option value="none">Flat list</option>
+                  <option value="expiry">Expiry range</option>
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs text-gray-400 mb-1">Sort by</label>
+                <select
+                  value={sortOpt}
+                  onChange={e => setSortOpt(e.target.value as SortOption)}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
+                >
+                  <option value="expiry-asc">Expiry: soonest first</option>
+                  <option value="expiry-desc">Expiry: latest first</option>
+                  <option value="name-asc">Name: A → Z</option>
+                  <option value="name-desc">Name: Z → A</option>
+                  <option value="brand-asc">Brand: A → Z</option>
+                  <option value="brand-desc">Brand: Z → A</option>
+                </select>
+              </div>
             </div>
-            <div className="flex-1">
-              <label className="block text-xs text-gray-400 mb-1">Sort by</label>
+
+            {/* Filter row */}
+            <div className="flex gap-2 items-center">
               <select
-                value={sortOpt}
-                onChange={e => setSortOpt(e.target.value as SortOption)}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
+                aria-label="Filter by space"
+                value={filterSpace ?? ''}
+                onChange={e => setFilterSpace(e.target.value === '' ? null : Number(e.target.value))}
+                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
               >
-                <option value="expiry-asc">Expiry: soonest first</option>
-                <option value="expiry-desc">Expiry: latest first</option>
-                <option value="name-asc">Name: A → Z</option>
-                <option value="name-desc">Name: Z → A</option>
-                <option value="brand-asc">Brand: A → Z</option>
-                <option value="brand-desc">Brand: Z → A</option>
+                <option value="">All spaces</option>
+                {spaces.map(s => (
+                  <option key={s.id} value={s.id}>{s.icon} {s.name}</option>
+                ))}
               </select>
+
+              <select
+                aria-label="Filter by expiry"
+                value={filterExpiry ?? ''}
+                onChange={e => setFilterExpiry(e.target.value === '' ? null : e.target.value)}
+                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
+              >
+                <option value="">All expiry</option>
+                {EXPIRY_BUCKETS.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                aria-pressed={filterZeroStock}
+                onClick={() => setFilterZeroStock(v => !v)}
+                className={`rounded-xl border px-3 py-2 text-sm min-h-[44px] whitespace-nowrap transition-colors ${
+                  filterZeroStock
+                    ? 'border-gray-800 bg-gray-800 text-white'
+                    : 'border-gray-200 bg-white text-gray-500'
+                }`}
+              >
+                Out of stock
+              </button>
             </div>
           </div>
-
-          {/* Filter row */}
-          <div className="flex gap-2 items-center">
-        <select
-          aria-label="Filter by space"
-          value={filterSpace ?? ''}
-          onChange={e => setFilterSpace(e.target.value === '' ? null : Number(e.target.value))}
-          className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
-        >
-          <option value="">All spaces</option>
-          {spaces.map(s => (
-            <option key={s.id} value={s.id}>{s.icon} {s.name}</option>
-          ))}
-        </select>
-
-        <select
-          aria-label="Filter by expiry"
-          value={filterExpiry ?? ''}
-          onChange={e => setFilterExpiry(e.target.value === '' ? null : e.target.value)}
-          className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
-        >
-          <option value="">All expiry</option>
-          {EXPIRY_BUCKETS.map(b => (
-            <option key={b} value={b}>{b}</option>
-          ))}
-        </select>
-
-        <button
-          type="button"
-          aria-pressed={filterZeroStock}
-          onClick={() => setFilterZeroStock(v => !v)}
-          className={`rounded-xl border px-3 py-2 text-sm min-h-[44px] whitespace-nowrap transition-colors ${
-            filterZeroStock
-              ? 'border-gray-800 bg-gray-800 text-white'
-              : 'border-gray-200 bg-white text-gray-500'
-          }`}
-        >
-          Out of stock
-        </button>
         </div>
-        </>
       )}
 
       {/* Active filter indicator — always visible when any filter is on */}
