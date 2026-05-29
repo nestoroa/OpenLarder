@@ -14,13 +14,14 @@ export async function startScan(
 ): Promise<void> {
   const r = getReader();
   try {
-    const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-    const rear = devices.find(d => /back|rear|environment/i.test(d.label));
-    const deviceId = rear?.deviceId ?? devices[0]?.deviceId;
-    r.decodeFromVideoDevice(deviceId ?? null, videoEl, (result, err) => {
-      if (result) { onResult(result.getText()); r.reset(); }
-      else if (err && err.name !== 'NotFoundException') onError(err as Error);
-    });
+    await r.decodeFromConstraints(
+      { video: { facingMode: { ideal: 'environment' } } },
+      videoEl,
+      (result, err) => {
+        if (result) { onResult(result.getText()); r.reset(); }
+        else if (err && err.name !== 'NotFoundException') onError(err as Error);
+      }
+    );
   } catch (err) {
     onError(err as Error);
   }
