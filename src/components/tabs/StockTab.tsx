@@ -197,6 +197,10 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
   const [filterExpiry,   setFilterExpiry]   = useState<string | null>(null);
   const [filterZeroStock, setFilterZeroStock] = useState(false);
 
+  // Panel visibility — ephemeral
+  const [showSearch,   setShowSearch]   = useState(false);
+  const [showControls, setShowControls] = useState(false);
+
   useEffect(() => { localStorage.setItem('openlarder:stock:groupBy', groupBy); }, [groupBy]);
   useEffect(() => { localStorage.setItem('openlarder:stock:sortOpt', sortOpt); }, [sortOpt]);
 
@@ -244,6 +248,7 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
   const groups = useMemo(() => groupItems(sortedItems, groupBy, spaces), [sortedItems, groupBy, spaces]);
 
   const isFiltered = searchQuery.trim() !== '' || filterSpace !== null || filterExpiry !== null || filterZeroStock;
+  const hasActiveControls = groupBy !== 'space' || sortOpt !== 'expiry-asc' || filterSpace !== null || filterExpiry !== null || filterZeroStock;
 
   function clearFilters() {
     setSearchQuery('');
@@ -431,52 +436,85 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Stock</h2>
         <div className="flex gap-2">
+          <button
+            type="button"
+            aria-label="Toggle search"
+            aria-pressed={showSearch}
+            onClick={() => setShowSearch(v => !v)}
+            className={`rounded-xl border px-3 py-2 text-sm min-h-[44px] min-w-[44px] transition-colors ${
+              showSearch || searchQuery.trim() !== ''
+                ? 'border-gray-800 bg-gray-800 text-white'
+                : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+            }`}
+          >🔍</button>
+          <button
+            type="button"
+            aria-label="Toggle sort and filter"
+            aria-pressed={showControls}
+            onClick={() => setShowControls(v => !v)}
+            className={`rounded-xl border px-3 py-2 text-sm min-h-[44px] min-w-[44px] transition-colors ${
+              showControls || hasActiveControls
+                ? 'border-gray-800 bg-gray-800 text-white'
+                : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="4" y1="6" x2="20" y2="6"/><circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/>
+              <line x1="4" y1="12" x2="20" y2="12"/><circle cx="14" cy="12" r="2" fill="currentColor" stroke="none"/>
+              <line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/>
+            </svg>
+          </button>
           <Button variant="secondary" onClick={() => setShowScanner(true)} className="text-sm px-3 py-2">📷 Scan</Button>
           <Button variant="primary" onClick={() => setAddModal(true)} className="text-sm px-3 py-2">+ Add item</Button>
         </div>
       </div>
 
-      {/* Group by / Sort by controls */}
-      <div className="flex gap-3">
-        <div className="flex-1">
-          <label className="block text-xs text-gray-400 mb-1">Group by</label>
-          <select
-            value={groupBy}
-            onChange={e => setGroupBy(e.target.value as GroupField)}
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
-          >
-            <option value="space">Storage space</option>
-            <option value="none">Flat list</option>
-            <option value="expiry">Expiry range</option>
-          </select>
-        </div>
-        <div className="flex-1">
-          <label className="block text-xs text-gray-400 mb-1">Sort by</label>
-          <select
-            value={sortOpt}
-            onChange={e => setSortOpt(e.target.value as SortOption)}
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
-          >
-            <option value="expiry-asc">Expiry: soonest first</option>
-            <option value="expiry-desc">Expiry: latest first</option>
-            <option value="name-asc">Name: A → Z</option>
-            <option value="name-desc">Name: Z → A</option>
-            <option value="brand-asc">Brand: A → Z</option>
-            <option value="brand-desc">Brand: Z → A</option>
-          </select>
-        </div>
-      </div>
+      {/* Search panel */}
+      {showSearch && (
+        <Input
+          aria-label="Search items"
+          placeholder="Search by name or brand…"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+        />
+      )}
 
-      {/* Search input */}
-      <Input
-        aria-label="Search items"
-        placeholder="Search by name or brand…"
-        value={searchQuery}
-        onChange={e => setSearchQuery(e.target.value)}
-      />
+      {/* Controls panel: group / sort / filter */}
+      {showControls && (
+        <>
+          {/* Group by / Sort by */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-xs text-gray-400 mb-1">Group by</label>
+              <select
+                value={groupBy}
+                onChange={e => setGroupBy(e.target.value as GroupField)}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
+              >
+                <option value="space">Storage space</option>
+                <option value="none">Flat list</option>
+                <option value="expiry">Expiry range</option>
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs text-gray-400 mb-1">Sort by</label>
+              <select
+                value={sortOpt}
+                onChange={e => setSortOpt(e.target.value as SortOption)}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white min-h-[44px]"
+              >
+                <option value="expiry-asc">Expiry: soonest first</option>
+                <option value="expiry-desc">Expiry: latest first</option>
+                <option value="name-asc">Name: A → Z</option>
+                <option value="name-desc">Name: Z → A</option>
+                <option value="brand-asc">Brand: A → Z</option>
+                <option value="brand-desc">Brand: Z → A</option>
+              </select>
+            </div>
+          </div>
 
-      {/* Filter row */}
-      <div className="flex gap-2 items-center">
+          {/* Filter row */}
+          <div className="flex gap-2 items-center">
         <select
           aria-label="Filter by space"
           value={filterSpace ?? ''}
@@ -513,9 +551,11 @@ export function StockTab({ pantryId, role }: { pantryId: number; role: string })
         >
           Out of stock
         </button>
-      </div>
+        </div>
+        </>
+      )}
 
-      {/* Active filter indicator */}
+      {/* Active filter indicator — always visible when any filter is on */}
       {isFiltered && (
         <div className="flex items-center justify-between text-xs text-gray-400">
           <span>Showing {filteredItems.length} of {stock.length} items</span>
